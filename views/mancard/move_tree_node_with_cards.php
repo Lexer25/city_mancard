@@ -13,11 +13,7 @@
                data-id="<?php echo $org['ID_ORG']; ?>" 
                data-name="<?php echo htmlspecialchars($org['NAME']); ?>">
         <span class="tree-toggle">
-            <?php if (isset($org['CHILDREN']) && !empty($org['CHILDREN'])): ?>
-                <i class="fa fa-folder-o"></i>
-            <?php else: ?>
-                <i class="fa fa-folder-o" style="color: #999;"></i>
-            <?php endif; ?>
+            <span class="glyphicon glyphicon-folder-close"></span>
         </span>
         <span class="item-name"><?php echo htmlspecialchars($org['NAME']); ?></span>
         <?php 
@@ -28,12 +24,12 @@
         ?>
         <?php if ($people_count > 0): ?>
             <span class="badge" style="margin-left: 5px; font-size: 10px; background-color: #337ab7;">
-                <i class="fa fa-users"></i> <?php echo $people_count; ?>
+                <span class="glyphicon glyphicon-user"></span> <?php echo $people_count; ?>
             </span>
         <?php endif; ?>
         <?php if (isset($org['CHILDREN']) && !empty($org['CHILDREN'])): ?>
             <span class="badge" style="margin-left: 3px; font-size: 10px; background-color: #5bc0de;">
-                <i class="fa fa-folder"></i> <?php echo count($org['CHILDREN']); ?>
+                <span class="glyphicon glyphicon-folder-close"></span> <?php echo count($org['CHILDREN']); ?>
             </span>
         <?php endif; ?>
     </div>
