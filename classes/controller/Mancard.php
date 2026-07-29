@@ -596,14 +596,15 @@ class Controller_Mancard extends Controller_Template {
         )));
     }
     
-    /**
-     * AJAX: Получить структуру организации с картами (один уровень)
-     */
-    public function action_get_org_structure_cards()
-    {
-        $this->auto_render = false;
-        $org_id = (int) $this->request->param('id', 1);
-        
+/**
+ * AJAX: Получить структуру организации с картами (один уровень)
+ */
+public function action_get_org_structure_cards()
+{
+    $this->auto_render = false;
+    $org_id = (int) $this->request->param('id', 1);
+    
+    try {
         $structure = Model::factory('Mancard')->getOrgStructureLevelWithCards($org_id);
         
         $this->response->headers('Content-Type', 'application/json');
@@ -611,7 +612,19 @@ class Controller_Mancard extends Controller_Template {
             'success' => true,
             'data' => $structure
         )));
+    } catch (Exception $e) {
+        // Логируем ошибку
+        Kohana::$log->add(Log::ERROR, 'Error in action_get_org_structure_cards: ' . $e->getMessage());
+        Kohana::$log->add(Log::ERROR, 'Trace: ' . $e->getTraceAsString());
+        
+        $this->response->headers('Content-Type', 'application/json');
+        $this->response->body(json_encode(array(
+            'success' => false,
+            'message' => $e->getMessage(),
+            'trace' => $e->getTraceAsString()
+        )));
     }
+}
     
     /**
      * AJAX: Получить карты сотрудника

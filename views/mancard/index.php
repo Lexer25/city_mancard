@@ -337,6 +337,17 @@
         margin-top: 15px;
     }
 }
+
+/* Стили для бейджей */
+.badge-empty {
+    opacity: 0.5;
+    font-weight: normal;
+    background-color: #f5f5f5 !important;
+    color: #ccc !important;
+}
+.badge-empty .glyphicon {
+    opacity: 0.5;
+}
 </style>
 
 <div class="panel panel-primary">
@@ -742,26 +753,47 @@ $(document).ready(function() {
     }
     
   // ===== Рендеринг детей узла с картами =====
+
+// ===== Рендеринг детей узла с картами =====
 function renderNodeChildren($container, data) {
-	
-	 //console.log('=== renderNodeChildren ВЫЗВАНА ===');
-    console.trace();
+    console.log('=== renderNodeChildren ВЫЗВАНА ===');
+    console.log('DATA from server:', data);
     $container.empty();
     
     if (data.CHILDREN && data.CHILDREN.length > 0) {
         $.each(data.CHILDREN, function(index, child) {
             var hasChildren = child.HAS_CHILDREN || false;
-            var iconStyle = hasChildren ? '' : 'style="color: #999;"';
+            var peopleCount = child.PEOPLE_COUNT !== undefined ? child.PEOPLE_COUNT : 0;
+            var childrenCount = child.CHILDREN_COUNT !== undefined ? child.CHILDREN_COUNT : 0;
+            
+            console.log('Child:', child.NAME, 'People:', peopleCount, 'Children:', childrenCount);
             
             var $li = $('<li class="tree-node" data-org-id="' + child.ID_ORG + '" data-type="org" data-expanded="false">');
             var $div = $('<div class="tree-item tree-item-org">');
             
-           var $toggle = $('<span class="tree-toggle">');
-$toggle.append('<span class="glyphicon glyphicon-folder-close"></span>');
+            // Иконка папки
+            var $toggle = $('<span class="tree-toggle">');
+            $toggle.append('<span class="glyphicon glyphicon-folder-close"></span>');
             $div.append($toggle);
             
+            // Название
             $div.append('<span class="item-name org-name">' + child.NAME + '</span>');
             
+            // Бейдж с количеством сотрудников (голубой) - ВСЕГДА ОТОБРАЖАЕТСЯ
+            var peopleBadgeClass = peopleCount > 0 ? 'badge' : 'badge badge-empty';
+            var peopleBadgeStyle = peopleCount > 0 ? 'background-color: #337ab7;' : 'background-color: #e7e7e7; color: #999;';
+            $div.append('<span class="' + peopleBadgeClass + '" style="margin-left: 5px; font-size: 10px; ' + peopleBadgeStyle + '">' +
+                '<span class="glyphicon glyphicon-user"></span> ' + peopleCount +
+                '</span>');
+            
+            // Бейдж с количеством дочерних организаций (синий) - ВСЕГДА ОТОБРАЖАЕТСЯ
+            var childrenBadgeClass = childrenCount > 0 ? 'badge' : 'badge badge-empty';
+            var childrenBadgeStyle = childrenCount > 0 ? 'background-color: #5bc0de;' : 'background-color: #e7e7e7; color: #999;';
+            $div.append('<span class="' + childrenBadgeClass + '" style="margin-left: 3px; font-size: 10px; ' + childrenBadgeStyle + '">' +
+                '<span class="glyphicon glyphicon-folder-close"></span> ' + childrenCount +
+                '</span>');
+            
+            // Кнопки действий
             var actionsHtml = '<div class="org-actions pull-right">' +
                 '<button class="btn btn-xs btn-info btn-add-child" title="<?php echo __('Добавить подразделение'); ?>">' +
                 '<span class="glyphicon glyphicon-plus"></span>' +
@@ -777,10 +809,12 @@ $toggle.append('<span class="glyphicon glyphicon-folder-close"></span>');
             actionsHtml += '</div>';
             $div.append(actionsHtml);
             
+            // ID тултип
             $div.append('<span class="id-tooltip">ID_ORG: ' + child.ID_ORG + '</span>');
             
             $li.append($div);
             
+            // Контейнер для дочерних элементов
             var $childrenUl = $('<ul class="tree-children" style="display:none;">');
             $li.append($childrenUl);
             
@@ -788,6 +822,7 @@ $toggle.append('<span class="glyphicon glyphicon-folder-close"></span>');
         });
     }
     
+    // Сотрудники
     if (data.PEOPLE && data.PEOPLE.length > 0) {
         $.each(data.PEOPLE, function(index, person) {
             var $li = $('<li class="tree-node" data-person-id="' + person.ID_PEP + '" data-type="person">');
