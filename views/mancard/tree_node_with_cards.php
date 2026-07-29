@@ -4,11 +4,12 @@
  * @var array $org - данные организации
  * @var int $level - уровень вложенности
  */
+$isRoot = ($org['ID_ORG'] == 1);
 ?>
-<li class="tree-node" data-org-id="<?php echo $org['ID_ORG']; ?>" data-type="org" data-expanded="false">
+<li class="tree-node" data-org-id="<?php echo $org['ID_ORG']; ?>" data-type="org" data-expanded="<?php echo $isRoot ? 'true' : 'false'; ?>">
     <div class="tree-item tree-item-org">
         <span class="tree-toggle">
-            <span class="glyphicon glyphicon-folder-close"></span>
+            <span class="glyphicon <?php echo $isRoot ? 'glyphicon-folder-open' : 'glyphicon-folder-close'; ?>"></span>
         </span>
         <span class="item-name org-name"><?php echo htmlspecialchars($org['NAME']); ?></span>
         <?php 
@@ -44,7 +45,7 @@
     </div>
     
     <?php if (isset($org['CHILDREN']) && !empty($org['CHILDREN'])): ?>
-        <ul class="tree-children" style="display: none;">
+        <ul class="tree-children" style="display: <?php echo $isRoot ? 'block' : 'none'; ?>;">
             <?php foreach ($org['CHILDREN'] as $child): ?>
                 <?php echo View::factory('mancard/tree_node_with_cards', array(
                     'org' => $child,

@@ -713,7 +713,7 @@ $(document).ready(function() {
     
     // ===== Загрузка содержимого узла =====
     function loadNodeContent($node) {
-		console.log('=== 716 loadNodeContent вызвана для org:', $node.data('org-id'));
+		//console.log('=== 716 loadNodeContent вызвана для org:', $node.data('org-id'));
         var orgId = $node.data('org-id');
         var $children = $node.children('.tree-children');
         var $icon = $node.find('.tree-toggle .glyphicon');
@@ -744,7 +744,7 @@ $(document).ready(function() {
   // ===== Рендеринг детей узла с картами =====
 function renderNodeChildren($container, data) {
 	
-	 console.log('=== renderNodeChildren ВЫЗВАНА ===');
+	 //console.log('=== renderNodeChildren ВЫЗВАНА ===');
     console.trace();
     $container.empty();
     
@@ -1358,7 +1358,7 @@ $toggle.append('<span class="glyphicon glyphicon-folder-close"></span>');
                 dataType: 'json',
                 success: function(response) {
                     $('#person-search').removeClass('searching');
-                    console.log('Search response:', response);
+                    //console.log('Search response:', response);
                     
                     if (response.success && response.data && response.data.length > 0) {
                         showSearchResults(response.data);
@@ -1396,7 +1396,7 @@ $toggle.append('<span class="glyphicon glyphicon-folder-close"></span>');
                 .on('click', function() {
                     var personId = $(this).data('person-id');
                     var orgId = $(this).data('org-id');
-                    console.log('Clicked on person:', personId, 'org:', orgId);
+                    //console.log('Clicked on person:', personId, 'org:', orgId);
                     
                     revealAndHighlightPerson(personId, orgId);
                     $('#search-results').hide();
@@ -1443,7 +1443,7 @@ $toggle.append('<span class="glyphicon glyphicon-folder-close"></span>');
                 dataType: 'json',
                 success: function(response) {
                     $('#card-search').removeClass('searching');
-                    console.log('Card search response:', response);
+                    //console.log('Card search response:', response);
                     
                     if (response.success && response.data && response.data.length > 0) {
                         showCardSearchResults(response.data);
@@ -1484,7 +1484,7 @@ $toggle.append('<span class="glyphicon glyphicon-folder-close"></span>');
                 .on('click', function() {
                     var personId = $(this).data('person-id');
                     var orgId = $(this).data('org-id');
-                    console.log('Clicked on person from card search:', personId, 'org:', orgId);
+                    //console.log('Clicked on person from card search:', personId, 'org:', orgId);
                     
                     revealAndHighlightPerson(personId, orgId);
                     $('#search-results').hide();
@@ -1531,12 +1531,12 @@ $toggle.append('<span class="glyphicon glyphicon-folder-close"></span>');
     
     // ===== Раскрытие дерева к сотруднику и подсветка =====
     function revealAndHighlightPerson(personId, orgId) {
-        console.log('Reveal and highlight person:', personId, 'in org:', orgId);
+        //console.log('Reveal and highlight person:', personId, 'in org:', orgId);
         
         var $orgNode = $('.tree-node[data-org-id="' + orgId + '"]');
         
         if ($orgNode.length === 0) {
-            console.log('Organization not found in DOM:', orgId);
+            //console.log('Organization not found in DOM:', orgId);
             alert('Организация не найдена в дереве');
             return;
         }
@@ -1547,7 +1547,7 @@ $toggle.append('<span class="glyphicon glyphicon-folder-close"></span>');
             
             if (!$node.data('expanded')) {
                 if ($children.children().length === 0) {
-                    console.log('Loading content for org:', $node.data('org-id'));
+                    //console.log('Loading content for org:', $node.data('org-id'));
                     loadNodeContent($node);
                 }
                 $children.show();
@@ -1555,7 +1555,7 @@ $toggle.append('<span class="glyphicon glyphicon-folder-close"></span>');
                     $icon.removeClass('glyphicon-folder-close').addClass('glyphicon-folder-open');
                 }
                 $node.data('expanded', true);
-                console.log('Expanded node:', $node.data('org-id'));
+                //console.log('Expanded node:', $node.data('org-id'));
             }
             
             $node.parents('.tree-node').each(function() {
@@ -1580,13 +1580,13 @@ $toggle.append('<span class="glyphicon glyphicon-folder-close"></span>');
         
         var checkInterval = setInterval(function() {
             attempts++;
-            console.log('Attempt', attempts, 'to find person:', personId);
+            //console.log('Attempt', attempts, 'to find person:', personId);
             
             var $person = $('.tree-item-person[data-person-id="' + personId + '"]');
             
             if ($person.length > 0) {
                 clearInterval(checkInterval);
-                console.log('Found person in DOM!');
+                //console.log('Found person in DOM!');
                 
                 var $node = $person.closest('.tree-node');
                 $node.show();
@@ -1627,7 +1627,7 @@ $toggle.append('<span class="glyphicon glyphicon-folder-close"></span>');
                 
             } else if (attempts >= maxAttempts) {
                 clearInterval(checkInterval);
-                console.log('Timeout: Person not found');
+                //console.log('Timeout: Person not found');
                 
                 var orgName = $orgNode.find('.org-name').text();
                 if (confirm('Сотрудник найден в организации "' + orgName + '", но еще не загружен в дерево.\n\nРаскрыть организацию вручную?')) {
@@ -1647,30 +1647,31 @@ $toggle.append('<span class="glyphicon glyphicon-folder-close"></span>');
     }
     
 // ===== Инициализация =====
-console.log('=== НАЧАЛО ИНИЦИАЛИЗАЦИИ ===');
+//console.log('=== НАЧАЛО ИНИЦИАЛИЗАЦИИ ===');
 
-// 1. Закрываем все папки (используем правильный селектор)
-$('.tree-toggle span').each(function() {
+// 1. Закрываем все папки КРОМЕ корня
+$('.tree-node[data-type="org"] .tree-toggle .glyphicon').each(function() {
     var $this = $(this);
-    if ($this.hasClass('glyphicon-folder-open')) {
+    var $node = $this.closest('.tree-node');
+    var orgId = $node.data('org-id');
+    
+    // Если это не корень (ID_ORG != 1) - закрываем папку
+    if (orgId != 1) {
         $this.removeClass('glyphicon-folder-open').addClass('glyphicon-folder-close');
+    } else {
+        // Корень - открываем
+        $this.removeClass('glyphicon-folder-close').addClass('glyphicon-folder-open');
     }
 });
+
+// 2. Скрываем все дочерние элементы КРОМЕ корня
 $('.tree-children').hide();
-$('.tree-node[data-type="org"]').data('expanded', false);
 
-console.log('После закрытия:');
-console.log('  glyphicon-folder-open:', $('.glyphicon-folder-open').length);
-console.log('  glyphicon-folder-close:', $('.glyphicon-folder-close').length);
-
-// 2. Открываем корень
-$('#file-tree-root .tree-toggle span')
-    .removeClass('glyphicon-folder-close')
-    .addClass('glyphicon-folder-open');
+// 3. Открываем корень
 $('#file-tree-root .tree-children').show();
 $('#file-tree-root > .tree-node').data('expanded', true);
 
-console.log('=== ИНИЦИАЛИЗАЦИЯ ЗАВЕРШЕНА ===');
+//console.log('=== ИНИЦИАЛИЗАЦИЯ ЗАВЕРШЕНА ===');
 
 updateRootCount();
 updateTotalOrgs();
