@@ -214,7 +214,7 @@
             <span class="glyphicon glyphicon-transfer"></span>
             <?php echo __('Массовое перемещение'); ?>
             <div class="pull-right">
-                <button class="btn btn-xs btn-default" id="btn-switch-view">
+                <button class="btn btn-xs btn-default" id="btn-switch-view" disabled>
                     <span class="glyphicon glyphicon-th-list"></span> <?php echo __('Переключить вид'); ?>
                 </button>
             </div>

@@ -10,7 +10,7 @@
         <span class="tree-toggle">
             <span class="glyphicon glyphicon-folder-close"></span>
         </span>
-        <span class="item-name org-name">13-13<?php echo htmlspecialchars($org['NAME']); ?></span>
+        <span class="item-name org-name"><?php echo htmlspecialchars($org['NAME']); ?></span>
         <?php 
         $people_count = 0;
         if (isset($org['PEOPLE_COUNT']) && $org['PEOPLE_COUNT'] > 0) {

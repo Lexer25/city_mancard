@@ -756,9 +756,8 @@ function renderNodeChildren($container, data) {
             var $li = $('<li class="tree-node" data-org-id="' + child.ID_ORG + '" data-type="org" data-expanded="false">');
             var $div = $('<div class="tree-item tree-item-org">');
             
-            var $toggle = $('<span class="tree-toggle">');
-            // ТОЛЬКО ОДНА ИКОНКА - ЗАКРЫТАЯ!
-            $toggle.append('<span class="glyphicon glyphicon-folder-close" ' + iconStyle + '></span>');
+           var $toggle = $('<span class="tree-toggle">');
+$toggle.append('<span class="glyphicon glyphicon-folder-close"></span>');
             $div.append($toggle);
             
             $div.append('<span class="item-name org-name">' + child.NAME + '</span>');
@@ -1650,59 +1649,36 @@ function renderNodeChildren($container, data) {
 // ===== Инициализация =====
 console.log('=== НАЧАЛО ИНИЦИАЛИЗАЦИИ ===');
 
-// 1. Закрываем все папки
-$('.tree-node[data-type="org"]:not(#file-tree-root > .tree-node) .tree-toggle .glyphicon')
-    .removeClass('glyphicon-folder-open')
-    .addClass('glyphicon-folder-close');
-$('.tree-node[data-type="org"]:not(#file-tree-root > .tree-node)').data('expanded', false);
-$('.tree-children:not(#file-tree-root .tree-children)').hide();
+// 1. Закрываем все папки (используем правильный селектор)
+$('.tree-toggle span').each(function() {
+    var $this = $(this);
+    if ($this.hasClass('glyphicon-folder-open')) {
+        $this.removeClass('glyphicon-folder-open').addClass('glyphicon-folder-close');
+    }
+});
+$('.tree-children').hide();
+$('.tree-node[data-type="org"]').data('expanded', false);
 
 console.log('После закрытия:');
 console.log('  glyphicon-folder-open:', $('.glyphicon-folder-open').length);
 console.log('  glyphicon-folder-close:', $('.glyphicon-folder-close').length);
 
 // 2. Открываем корень
-$('#file-tree-root > .tree-node .tree-toggle .glyphicon')
+$('#file-tree-root .tree-toggle span')
     .removeClass('glyphicon-folder-close')
     .addClass('glyphicon-folder-open');
-$('#file-tree-root > .tree-node').data('expanded', true);
 $('#file-tree-root .tree-children').show();
+$('#file-tree-root > .tree-node').data('expanded', true);
 
 console.log('=== ИНИЦИАЛИЗАЦИЯ ЗАВЕРШЕНА ===');
 
-// 3. Загружаем корень, если нужно
+updateRootCount();
+updateTotalOrgs();
+
 if ($('#root-children').children().length === 0) {
     loadNodeContent($('#file-tree-root > .tree-node'));
 }
 
 loadAllAccessNames();
-
-// 4. ПОСЛЕДНЕЕ ПРИНУДИТЕЛЬНОЕ ЗАКРЫТИЕ (через 200 мс после загрузки)
-setTimeout(function() {
-    console.log('=== ВЫПОЛНЯЕМ ФИНАЛЬНОЕ ЗАКРЫТИЕ ===');
-    
-    // Перебираем все иконки папок
-    $('.tree-toggle span').each(function() {
-        var $this = $(this);
-        if ($this.hasClass('glyphicon-folder-open')) {
-            $this.removeClass('glyphicon-folder-open').addClass('glyphicon-folder-close');
-        }
-    });
-    
-    // Скрываем все дочерние элементы (кроме корня)
-    $('.tree-children:not(#file-tree-root .tree-children)').hide();
-    $('.tree-node[data-type="org"]:not(#file-tree-root > .tree-node)').data('expanded', false);
-    
-    // Убеждаемся, что корень открыт
-    $('#file-tree-root .tree-toggle span')
-        .removeClass('glyphicon-folder-close')
-        .addClass('glyphicon-folder-open');
-    $('#file-tree-root .tree-children').show();
-    $('#file-tree-root > .tree-node').data('expanded', true);
-    
-    console.log('=== ФИНАЛЬНОЕ СОСТОЯНИЕ ===');
-    console.log('glyphicon-folder-open:', $('.glyphicon-folder-open').length);
-    console.log('glyphicon-folder-close:', $('.glyphicon-folder-close').length);
-}, 300);
 });
 </script>

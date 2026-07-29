@@ -508,7 +508,7 @@ class Controller_Mancard extends Controller_Template {
     {
         $this->auto_render = false;
         $post = $this->request->post();
-   Log::instance()->add(Log::NOTICE, '511 ' . Debug::vars($_POST));
+
         $source_org_id = (int) Arr::get($post, 'source_org_id', 0);
         $target_org_id = (int) Arr::get($post, 'target_org_id', 0);
         $move_people = Arr::get($post, 'move_people', array());
