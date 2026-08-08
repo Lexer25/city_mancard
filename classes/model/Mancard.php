@@ -67,28 +67,54 @@ public function getOrganizationTree()
     /**
      * Получить информацию об организации
      */
-    public function getOrganization($id_org)
-    {
-        $sql = 'SELECT ID_ORG, NAME, ID_PARENT, FLAG 
-                FROM ORGANIZATION 
-                WHERE ID_ORG = ' . (int)$id_org;
-        
-        $query = DB::query(Database::SELECT, $sql)
+   protected function _addAccessName($data)
+{
+    // Проверяем существование GUID
+    $guid = Arr::get($data, 'guid');
+    $name = Arr::get($data, 'name');
+    
+    if (empty($guid) || empty($name)) {
+        Log::instance()->add(Log::WARNING, 'Отсутствуют обязательные параметры: guid или name');
+        return false;
+    }
+    
+    try {
+        // Проверяем, существует ли запись с таким GUID
+        $checkSql = 'SELECT COUNT(*) as count FROM ACCESSNAME WHERE GUID = :guid';
+        $checkQuery = DB::query(Database::SELECT, $checkSql)
+            ->parameters(array(':guid' => $guid))
             ->execute(Database::instance('fb'))
             ->as_array();
         
-        if (empty($query)) {
-            return null;
+        $exists = (int)$checkQuery[0]['count'] > 0;
+        
+        if ($exists) {
+            Log::instance()->add(Log::NOTICE, 'Запись с GUID ' . $guid . ' уже существует');
+            return false;
         }
         
-        $row = $query[0];
-        return array(
-            'ID_ORG' => $row['ID_ORG'],
-            'NAME' => iconv('windows-1251', 'UTF-8', $row['NAME']),
-            'ID_PARENT' => $row['ID_PARENT'],
-            'FLAG' => $row['FLAG'],
-        );
+        // Вставляем новую запись
+        $sql = 'INSERT INTO ACCESSNAME (ID_DB, NAME, GUID) VALUES (1, :name, :guid)';
+        
+        Log::instance()->add(Log::NOTICE, 'Выполняется INSERT: ' . $sql);
+        
+        // Для PDO используем параметры через метод parameters()
+        $query = DB::query(Database::INSERT, $sql)
+            ->parameters(array(
+                ':name' => $name,
+                ':guid' => $guid
+            ))
+            ->execute(Database::instance('fb'));
+        
+        Log::instance()->add(Log::NOTICE, 'Запись успешно добавлена. ID: ' . $query);
+        
+        return $query; // Возвращаем ID новой записи
+        
+    } catch (Exception $e) {
+        Log::instance()->add(Log::ERROR, 'Ошибка при вставке записи: ' . $e->getMessage());
+        return false;
     }
+}
     
     /**
      * Добавить организацию

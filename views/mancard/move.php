@@ -1,212 +1,10 @@
 <?php
 /**
  * Страница массового перемещения сотрудников и организаций
- * Две панели с деревьями и стрелками между ними
+ * Левая панель - Источник (с чекбоксами)
+ * Правая панель - Назначение (выбор кликом)
  */
 ?>
-
-<style>
-/* Стили для отображения карт */
-.card-badge {
-    display: inline-block;
-    padding: 1px 6px;
-    margin: 1px 2px;
-    font-size: 10px;
-    font-weight: bold;
-    border-radius: 3px;
-    line-height: 1.2;
-    white-space: nowrap;
-}
-.card-badge-rfid {
-    background-color: #d9edf7;
-    color: #31708f;
-    border: 1px solid #bce8f1;
-}
-.card-badge-fp {
-    background-color: #fcf8e3;
-    color: #8a6d3b;
-    border: 1px solid #faebcc;
-}
-.card-badge-barcode {
-    background-color: #dff0d8;
-    color: #3c763d;
-    border: 1px solid #d6e9c6;
-}
-.card-badge-grz {
-    background-color: #f5f5f5;
-    color: #333;
-    border: 1px solid #ddd;
-}
-.card-badge-faceid {
-    background-color: #e8d5f5;
-    color: #6f2c8a;
-    border: 1px solid #d4b8e8;
-}
-.card-badge-default {
-    background-color: #eee;
-    color: #666;
-    border: 1px solid #ddd;
-}
-.card-badge-inactive {
-    opacity: 0.5;
-    text-decoration: line-through;
-}
-.card-badge .glyphicon {
-    margin-right: 2px;
-    font-size: 9px;
-}
-.tree-item-person .cards-container {
-    display: inline-block;
-    margin-left: 5px;
-}
-.tree-item-person .cards-container .card-badge {
-    font-size: 9px;
-    padding: 1px 5px;
-}
-.tree-item-person .person-name {
-    font-weight: 500;
-}
-.tree-item-person .person-post {
-    color: #999;
-    font-size: 11px;
-    margin-left: 5px;
-}
-.tree-item-person .person-status-inactive {
-    opacity: 0.6;
-}
-
-/* Остальные стили */
-.file-tree {
-    list-style: none;
-    padding-left: 0;
-    margin: 0;
-}
-.file-tree ul {
-    list-style: none;
-    padding-left: 20px;
-    margin: 0;
-}
-.tree-node {
-    margin: 1px 0;
-}
-.tree-item {
-    padding: 2px 5px;
-    border-radius: 3px;
-    display: flex;
-    align-items: center;
-    cursor: default;
-}
-.tree-item:hover {
-    background: #f0f0f0;
-}
-.tree-item .tree-toggle {
-    width: 20px;
-    cursor: pointer;
-    text-align: center;
-    flex-shrink: 0;
-}
-.tree-item .tree-toggle .glyphicon {
-    font-size: 14px;
-}
-.tree-item .item-checkbox {
-    margin-right: 5px;
-    flex-shrink: 0;
-}
-.tree-item .item-name {
-    margin-left: 3px;
-    flex: 1;
-}
-.tree-children {
-    padding-left: 20px;
-}
-.tree-node .tree-children {
-    border-left: 1px dashed #ddd;
-    margin-left: 8px;
-    padding-left: 12px;
-}
-
-/* Стили для панелей */
-.move-container {
-    min-height: 500px;
-}
-.move-panel {
-    height: 100%;
-}
-.move-panel .panel-body {
-    height: 100%;
-}
-.move-list {
-    border: 1px solid #e7e7e7;
-    border-radius: 4px;
-    background: #fafafa;
-}
-.move-list .table {
-    margin-bottom: 0;
-}
-.move-list .table thead th {
-    background: #f5f5f5;
-    border-bottom: 2px solid #ddd;
-}
-.move-buttons {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.move-buttons .btn {
-    width: 100%;
-    padding: 20px 10px;
-}
-.move-buttons .btn .glyphicon {
-    display: block;
-}
-#target-org-info {
-    margin-top: 10px;
-    margin-bottom: 10px;
-}
-#target-org-info .label {
-    font-size: 12px;
-    padding: 4px 8px;
-}
-
-/* Анимация спиннера */
-.glyphicon-spin {
-    animation: spin 1s linear infinite;
-}
-@keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
-}
-
-/* Анимация */
-.tree-children {
-    transition: all 0.3s ease;
-}
-
-/* Поиск */
-#left-search:focus {
-    border-color: #66afe9;
-    box-shadow: inset 0 1px 1px rgba(0,0,0,.075), 0 0 8px rgba(102, 175, 233, .6);
-}
-
-/* Адаптивность */
-@media (max-width: 768px) {
-    .move-buttons {
-        padding: 15px 0;
-    }
-    .move-buttons .btn {
-        width: auto;
-        padding: 10px 20px;
-        display: inline-block;
-    }
-    .move-buttons .btn .glyphicon {
-        display: inline-block;
-        margin-right: 5px;
-    }
-    .move-buttons .btn .glyphicon-arrow-right {
-        font-size: 1.5em !important;
-    }
-}
-</style>
 
 <div class="panel panel-primary">
     <div class="panel-heading">
@@ -214,7 +12,7 @@
             <span class="glyphicon glyphicon-transfer"></span>
             <?php echo __('Массовое перемещение'); ?>
             <div class="pull-right">
-                <button class="btn btn-xs btn-default" id="btn-switch-view" disabled>
+                <button class="btn btn-xs btn-default" id="btn-switch-view">
                     <span class="glyphicon glyphicon-th-list"></span> <?php echo __('Переключить вид'); ?>
                 </button>
             </div>
@@ -225,14 +23,11 @@
         <!-- Информационная панель -->
         <div class="alert alert-info">
             <span class="glyphicon glyphicon-info-sign"></span>
-            <?php echo __('Выберите элементы в левой панели (сотрудников или организаций), затем выберите целевую организацию в правой панели и нажмите стрелку для перемещения.'); ?>
-            <br>
-            <small><span class="glyphicon glyphicon-credit-card"></span> <?php echo __('У сотрудников отображаются все выданные идентификаторы (карты, отпечатки пальцев, FaceID и т.д.)'); ?></small>
+            <?php echo __('Выберите элементы в левой панели (сотрудников или организаций), затем кликните на организацию в правой панели для выбора цели и нажмите стрелку для перемещения.'); ?>
         </div>
         
-        <!-- Основные панели -->
         <div class="row move-container">
-            <!-- Левая панель - источник -->
+            <!-- Левая панель - Источник (с чекбоксами) -->
             <div class="col-md-5">
                 <div class="panel panel-default move-panel">
                     <div class="panel-heading">
@@ -240,23 +35,23 @@
                             <span class="glyphicon glyphicon-arrow-right"></span>
                             <?php echo __('Источник'); ?>
                             <span class="pull-right">
-                                <button class="btn btn-xs btn-success" id="btn-select-all-left" title="<?php echo __('Выбрать все'); ?>">
+                                <button class="btn btn-xs btn-success" id="btn-select-all" title="<?php echo __('Выбрать все'); ?>">
                                     <span class="glyphicon glyphicon-check"></span>
                                 </button>
-                                <button class="btn btn-xs btn-default" id="btn-deselect-all-left" title="<?php echo __('Снять выделение'); ?>">
+                                <button class="btn btn-xs btn-default" id="btn-deselect-all" title="<?php echo __('Снять выделение'); ?>">
                                     <span class="glyphicon glyphicon-unchecked"></span>
                                 </button>
-                                <button class="btn btn-xs btn-info" id="btn-expand-all" title="<?php echo __('Развернуть всё'); ?>">
+                                <button class="btn btn-xs btn-info" id="btn-expand-left" title="<?php echo __('Развернуть всё'); ?>">
                                     <span class="glyphicon glyphicon-plus-sign"></span>
                                 </button>
-                                <button class="btn btn-xs btn-warning" id="btn-collapse-all" title="<?php echo __('Свернуть всё'); ?>">
+                                <button class="btn btn-xs btn-warning" id="btn-collapse-left" title="<?php echo __('Свернуть всё'); ?>">
                                     <span class="glyphicon glyphicon-minus-sign"></span>
                                 </button>
                             </span>
                         </h4>
                     </div>
-                    <div class="panel-body" style="padding: 5px;">
-                        <!-- Строка поиска -->
+                    <div class="panel-body">
+                        <!-- Поиск -->
                         <div class="form-group" style="margin-bottom: 5px;">
                             <div class="input-group input-group-sm">
                                 <span class="input-group-addon"><span class="glyphicon glyphicon-search"></span></span>
@@ -265,17 +60,23 @@
                         </div>
                         
                         <!-- Дерево -->
-                        <div class="move-list" id="left-tree" style="max-height: 400px; overflow-y: auto; overflow-x: auto; padding: 5px;">
-                            <ul class="file-tree" id="file-tree-root">
-                                <?php if (isset($org_tree) && !empty($org_tree)): ?>
-                                    <?php foreach ($org_tree as $org): ?>
-                                        <?php if ($org['ID_PARENT'] == 1): ?>
-                                            <?php echo View::factory('mancard/move_tree_node_with_cards', array(
-                                                'org' => $org,
-                                                'level' => 0
-                                            )); ?>
-                                        <?php endif; ?>
-                                    <?php endforeach; ?>
+                        <div class="move-list" id="left-tree">
+                            <ul class="file-tree" id="left-tree-root">
+                                <?php 
+                                $rootOrg = null;
+                                foreach ($org_tree as $org) {
+                                    if ($org['ID_ORG'] == 1) {
+                                        $rootOrg = $org;
+                                        break;
+                                    }
+                                }
+                                
+                                if ($rootOrg): 
+                                ?>
+                                    <?php echo View::factory('mancard/move_from_tree_node_with_cards', array(
+                                        'org' => $rootOrg,
+                                        'level' => 0
+                                    )); ?>
                                 <?php endif; ?>
                             </ul>
                         </div>
@@ -283,7 +84,7 @@
                         <div class="panel-footer" style="padding: 5px 10px;">
                             <small class="text-muted">
                                 <span class="glyphicon glyphicon-tag"></span>
-                                <?php echo __('Выбрано'); ?>: <span id="left-selected-count">0</span>
+                                <?php echo __('Выбрано'); ?>: <span id="selected-count">0</span>
                             </small>
                         </div>
                     </div>
@@ -293,15 +94,23 @@
             <!-- Центр - кнопки перемещения -->
             <div class="col-md-2 text-center move-buttons">
                 <div style="display: flex; flex-direction: column; justify-content: center; height: 100%; padding: 20px 0;">
-                    <button class="btn btn-primary btn-lg" id="btn-move-right" style="margin-bottom: 20px;" title="<?php echo __('Переместить выбранное вправо'); ?>">
+                    <button class="btn btn-primary btn-lg" id="btn-move" style="margin-bottom: 20px;" title="<?php echo __('Переместить выбранное вправо'); ?>">
                         <span class="glyphicon glyphicon-arrow-right" style="font-size: 2em;"></span>
                         <br>
                         <small><?php echo __('Переместить →'); ?></small>
                     </button>
+                    
+                    <!-- Информация о выбранной цели -->
+                    <div id="target-info">
+                        <strong><?php echo __('Цель'); ?>:</strong>
+                        <span id="target-name" class="text-muted"><?php echo __('не выбрана'); ?></span>
+                        <br>
+                        <small class="text-muted">ID: <span id="target-id">—</span></small>
+                    </div>
                 </div>
             </div>
             
-            <!-- Правая панель - назначение -->
+            <!-- Правая панель - Назначение (без чекбоксов, выбор кликом) -->
             <div class="col-md-5">
                 <div class="panel panel-success move-panel">
                     <div class="panel-heading">
@@ -309,63 +118,45 @@
                             <span class="glyphicon glyphicon-arrow-left"></span>
                             <?php echo __('Назначение'); ?>
                             <span class="pull-right">
-                                <button class="btn btn-xs btn-info" id="btn-refresh-right" title="<?php echo __('Обновить'); ?>">
+                                <button class="btn btn-xs btn-info" id="btn-expand-right" title="<?php echo __('Развернуть всё'); ?>">
+                                    <span class="glyphicon glyphicon-plus-sign"></span>
+                                </button>
+                                <button class="btn btn-xs btn-warning" id="btn-collapse-right" title="<?php echo __('Свернуть всё'); ?>">
+                                    <span class="glyphicon glyphicon-minus-sign"></span>
+                                </button>
+                                <button class="btn btn-xs btn-default" id="btn-refresh" title="<?php echo __('Обновить'); ?>">
                                     <span class="glyphicon glyphicon-refresh"></span>
                                 </button>
                             </span>
                         </h4>
                     </div>
-                    <div class="panel-body" style="padding: 5px;">
-                        <!-- Выбор целевой организации -->
-                        <div class="form-group">
-                            <label for="target-org-select"><?php echo __('Целевая организация'); ?></label>
-                            <select class="form-control" id="target-org-select">
-                                <option value="1"><?php echo __('Корень'); ?></option>
-                                <?php if (isset($organizations) && !empty($organizations)): ?>
-                                    <?php foreach ($organizations as $org): ?>
-                                        <?php if ($org['ID_ORG'] != 1): ?>
-                                            <?php $level = isset($org['LEVEL']) ? $org['LEVEL'] : 0; ?>
-                                            <option value="<?php echo $org['ID_ORG']; ?>">
-                                                <?php echo str_repeat('—', $level) . ' ' . htmlspecialchars($org['NAME']); ?>
-                                            </option>
-                                        <?php endif; ?>
-                                    <?php endforeach; ?>
+                    <div class="panel-body">
+                        <!-- Поиск -->
+                        <div class="form-group" style="margin-bottom: 5px;">
+                            <div class="input-group input-group-sm">
+                                <span class="input-group-addon"><span class="glyphicon glyphicon-search"></span></span>
+                                <input type="text" class="form-control" id="right-search" placeholder="<?php echo __('Поиск по названию...'); ?>">
+                            </div>
+                        </div>
+                        
+                        <!-- Дерево -->
+                        <div class="move-list" id="right-tree">
+                            <ul class="file-tree" id="right-tree-root">
+                                <?php 
+                                if ($rootOrg): 
+                                ?>
+                                    <?php echo View::factory('mancard/move_to_tree_node_with_cards', array(
+                                        'org' => $rootOrg,
+                                        'level' => 0
+                                    )); ?>
                                 <?php endif; ?>
-                            </select>
+                            </ul>
                         </div>
                         
-                        <!-- Информация о выбранной организации -->
-                        <div class="well well-sm" id="target-org-info">
-                            <strong><?php echo __('Выбрана'); ?>:</strong>
-                            <span id="target-org-name"><?php echo __('Корень'); ?></span>
-                            <span class="pull-right">
-                                <span class="label label-info" id="target-org-people-count">0</span>
-                            </span>
-                        </div>
-                        
-                        <!-- Список элементов в целевой организации -->
-                        <div class="move-list" id="right-items-list" style="max-height: 350px; overflow-y: auto;">
-                            <table class="table table-striped table-hover table-condensed">
-                                <thead>
-                                    <tr>
-                                        <th><?php echo __('Тип'); ?></th>
-                                        <th><?php echo __('Название / ФИО'); ?></th>
-                                        <th><?php echo __('Идентификаторы'); ?></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td colspan="3" class="text-center text-muted">
-                                            <span class="glyphicon glyphicon-info-sign"></span> <?php echo __('Выберите целевую организацию'); ?>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
                         <div class="panel-footer" style="padding: 5px 10px;">
                             <small class="text-muted">
-                                <span class="glyphicon glyphicon-hdd"></span>
-                                <?php echo __('Всего элементов'); ?>: <span id="right-items-count">0</span>
+                                <span class="glyphicon glyphicon-info-sign"></span>
+                                <?php echo __('Кликните на организацию для выбора цели'); ?>
                             </small>
                         </div>
                     </div>
@@ -378,10 +169,10 @@
 
 <script>
 $(document).ready(function() {
-    var selectedItems = [];
-    var targetOrgId = 1;
+    var targetOrgId = null;
+    var targetOrgName = null;
     
-    // ===== Функция получения CSS класса для типа карты =====
+    // ===== Получение класса для типа карты =====
     function getCardClass(cardType) {
         var typeMap = {
             'Карта EM-marine': 'card-badge-rfid',
@@ -399,7 +190,6 @@ $(document).ready(function() {
         return typeMap[cardType] || 'card-badge-default';
     }
     
-    // ===== Функция получения иконки для типа карты =====
     function getCardIcon(cardType) {
         var iconMap = {
             'Карта EM-marine': 'glyphicon glyphicon-credit-card',
@@ -417,11 +207,9 @@ $(document).ready(function() {
         return iconMap[cardType] || 'glyphicon glyphicon-credit-card';
     }
     
-    // ===== Функция рендеринга сотрудника с картами =====
     function renderPersonItem(person) {
         var fullName = person.SURNAME + ' ' + person.NAME + ' ' + person.PATRONYMIC;
         var statusClass = person.ACTIVE == 1 ? '' : 'person-status-inactive';
-        var statusIcon = person.ACTIVE == 1 ? 'glyphicon glyphicon-user' : 'glyphicon glyphicon-user';
         var statusColor = person.ACTIVE == 1 ? '' : 'text-muted';
         
         var cardsHtml = '';
@@ -445,11 +233,14 @@ $(document).ready(function() {
                 '<span class="glyphicon glyphicon-info-sign"></span> нет идентификаторов</span>';
         }
         
-        return '<div class="tree-item tree-item-person ' + statusClass + '">' +
-            '<input type="checkbox" class="item-checkbox" value="person_' + person.ID_PEP + '" ' +
-            'data-type="person" data-id="' + person.ID_PEP + '" data-name="' + fullName + '">' +
+        // Для левой панели - с чекбоксом, для правой - без
+        var isLeft = $(this).closest('#left-tree').length > 0;
+        var checkboxHtml = isLeft ? '<input type="checkbox" class="item-checkbox" value="person_' + person.ID_PEP + '" data-type="person" data-id="' + person.ID_PEP + '" data-name="' + fullName + '">' : '';
+        
+        return '<div class="tree-item tree-item-person ' + statusClass + '" data-person-id="' + person.ID_PEP + '" data-org-id="' + person.ID_ORG + '">' +
+            checkboxHtml +
             '<span class="tree-toggle">' +
-            '<span class="' + statusIcon + ' ' + statusColor + '"></span>' +
+            '<span class="glyphicon glyphicon-user ' + statusColor + '"></span>' +
             '</span>' +
             '<span class="item-name person-name ' + statusColor + '">' + fullName + '</span>' +
             (person.POST ? ' <span class="person-post">(' + person.POST + ')</span>' : '') +
@@ -486,49 +277,73 @@ $(document).ready(function() {
         var orgId = $node.data('org-id');
         var $children = $node.children('.tree-children');
         var $icon = $node.find('.tree-toggle .glyphicon');
+        var side = $node.closest('.move-list').attr('id') === 'left-tree' ? 'left' : 'right';
         
         $.ajax({
             url: '<?php echo URL::site('mancard/get_org_structure_cards'); ?>/' + orgId,
             type: 'GET',
             dataType: 'json',
             beforeSend: function() {
-                $children.html('<div class="text-center text-muted"><span class="glyphicon glyphicon-refresh glyphicon-spin"></span> <?php echo __('Загрузка...'); ?></div>');
+                $children.html('<div class="text-center text-muted" style="padding: 10px;"><span class="glyphicon glyphicon-refresh glyphicon-spin"></span> <?php echo __('Загрузка...'); ?></div>');
             },
             success: function(response) {
                 if (response.success && response.data) {
-                    renderNodeChildrenWithCards($children, response.data);
+                    renderNodeChildren($children, response.data, side);
                     $children.slideDown();
                     $icon.removeClass('glyphicon-folder-close').addClass('glyphicon-folder-open');
                     $node.data('expanded', true);
                 } else {
-                    $children.html('<div class="text-muted"><span class="glyphicon glyphicon-info-sign"></span> <?php echo __('Нет данных'); ?></div>');
+                    $children.html('<div class="text-muted" style="padding: 10px;"><span class="glyphicon glyphicon-info-sign"></span> <?php echo __('Нет данных'); ?></div>');
                 }
             },
             error: function() {
-                $children.html('<div class="text-danger"><span class="glyphicon glyphicon-exclamation-sign"></span> <?php echo __('Ошибка загрузки'); ?></div>');
+                $children.html('<div class="text-danger" style="padding: 10px;"><span class="glyphicon glyphicon-exclamation-sign"></span> <?php echo __('Ошибка загрузки'); ?></div>');
             }
         });
     }
     
-    // ===== Рендеринг детей узла с картами =====
-    function renderNodeChildrenWithCards($container, data) {
+    // ===== Рендеринг детей узла =====
+    function renderNodeChildren($container, data, side) {
         $container.empty();
+        var isLeft = side === 'left';
         
         if (data.CHILDREN && data.CHILDREN.length > 0) {
             $.each(data.CHILDREN, function(index, child) {
-                var hasChildren = child.HAS_CHILDREN || false;
-                var iconClass = hasChildren ? 'glyphicon glyphicon-folder-close' : 'glyphicon glyphicon-folder-close';
-                var iconStyle = hasChildren ? '' : 'style="color: #999;"';
+                var peopleCount = child.PEOPLE_COUNT || 0;
+                var childrenCount = child.CHILDREN_COUNT || 0;
+                var checkboxId = side + '_org_' + child.ID_ORG;
                 
                 var $li = $('<li class="tree-node" data-org-id="' + child.ID_ORG + '" data-type="org" data-expanded="false">');
-                var $div = $('<div class="tree-item tree-item-org">');
+                var $div = $('<div class="tree-item tree-item-org" data-org-id="' + child.ID_ORG + '" data-org-name="' + child.NAME + '">');
                 
-                $div.append('<input type="checkbox" class="item-checkbox" value="org_' + child.ID_ORG + '" data-type="org" data-id="' + child.ID_ORG + '" data-name="' + child.NAME + '">');
+                // Чекбокс только для левой панели
+                if (isLeft && child.ID_ORG != 1) {
+                    $div.append('<input type="checkbox" class="item-checkbox" id="' + checkboxId + '" ' +
+                        'value="org_' + child.ID_ORG + '" ' +
+                        'data-type="org" data-id="' + child.ID_ORG + '" data-name="' + child.NAME + '">');
+                } else if (isLeft) {
+                    $div.append('<span style="width: 20px; flex-shrink: 0;"></span>');
+                }
                 
                 var $toggle = $('<span class="tree-toggle">');
-                $toggle.append('<span class="' + iconClass + '" ' + iconStyle + '></span>');
+                $toggle.append('<span class="glyphicon glyphicon-folder-close"></span>');
                 $div.append($toggle);
+                
                 $div.append('<span class="item-name">' + child.NAME + '</span>');
+                
+                // Бейдж с количеством сотрудников
+                var badgeClass = peopleCount > 0 ? 'badge' : 'badge badge-empty';
+                var badgeStyle = peopleCount > 0 ? 'background-color: #337ab7;' : 'background-color: #f5f5f5; color: #ccc;';
+                $div.append('<span class="' + badgeClass + '" style="margin-left: 5px; font-size: 10px; ' + badgeStyle + '">' +
+                    '<span class="glyphicon glyphicon-user"></span> ' + peopleCount +
+                    '</span>');
+                
+                // Бейдж с количеством дочерних организаций
+                var childBadgeClass = childrenCount > 0 ? 'badge' : 'badge badge-empty';
+                var childBadgeStyle = childrenCount > 0 ? 'background-color: #5bc0de;' : 'background-color: #f5f5f5; color: #ccc;';
+                $div.append('<span class="' + childBadgeClass + '" style="margin-left: 3px; font-size: 10px; ' + childBadgeStyle + '">' +
+                    '<span class="glyphicon glyphicon-folder-close"></span> ' + childrenCount +
+                    '</span>');
                 
                 $li.append($div);
                 
@@ -542,44 +357,71 @@ $(document).ready(function() {
         if (data.PEOPLE && data.PEOPLE.length > 0) {
             $.each(data.PEOPLE, function(index, person) {
                 var $li = $('<li class="tree-node" data-person-id="' + person.ID_PEP + '" data-type="person">');
-                var html = renderPersonItem(person);
+                var html = renderPersonItem(person, isLeft);
                 $li.append(html);
                 $container.append($li);
             });
         }
         
         if ($container.children().length === 0) {
-            $container.html('<div class="text-muted"><span class="glyphicon glyphicon-info-sign"></span> <?php echo __('Пусто'); ?></div>');
+            $container.html('<div class="text-muted" style="padding: 10px;"><span class="glyphicon glyphicon-info-sign"></span> <?php echo __('Пусто'); ?></div>');
         }
-        
-        updateSelectedCount();
     }
     
-    // ===== Выделение элементов =====
-    $(document).on('change', '.item-checkbox', function() {
+    // ===== Выбор организации в правой панели =====
+    $(document).on('click', '#right-tree .tree-item-org', function(e) {
+        if ($(e.target).closest('.tree-toggle').length > 0) {
+            return;
+        }
+        
+        var orgId = $(this).data('org-id');
+        var orgName = $(this).data('org-name');
+        
+        if (!orgId) return;
+        if (orgId == 1) {
+            alert('<?php echo __('Нельзя выбрать корневую организацию как цель'); ?>');
+            return;
+        }
+        
+        // Снимаем выделение со всех
+        $('#right-tree .tree-item-org').removeClass('tree-item-selected');
+        
+        // Выделяем выбранную
+        $(this).addClass('tree-item-selected');
+        
+        targetOrgId = orgId;
+        targetOrgName = orgName;
+        
+        $('#target-name').text(orgName);
+        $('#target-id').text(orgId);
+    });
+    
+    // ===== Обновление счетчика выбранных =====
+    function updateSelectedCount() {
+        var count = $('#left-tree .item-checkbox:checked').length;
+        $('#selected-count').text(count);
+    }
+    
+    $(document).on('change', '#left-tree .item-checkbox', function() {
         updateSelectedCount();
     });
     
-    function updateSelectedCount() {
-        var count = $('.item-checkbox:checked').length;
-        $('#left-selected-count').text(count);
-    }
-    
-    // ===== Выбрать все видимые =====
-    $('#btn-select-all-left').on('click', function() {
-        $('.tree-item:visible .item-checkbox').prop('checked', true);
+    // ===== Выбрать все =====
+    $('#btn-select-all').on('click', function() {
+        $('#left-tree .item-checkbox').prop('checked', true);
         updateSelectedCount();
     });
     
     // ===== Снять выделение =====
-    $('#btn-deselect-all-left').on('click', function() {
-        $('.item-checkbox').prop('checked', false);
+    $('#btn-deselect-all').on('click', function() {
+        $('#left-tree .item-checkbox').prop('checked', false);
         updateSelectedCount();
     });
     
     // ===== Развернуть всё =====
-    $('#btn-expand-all').on('click', function() {
-        $('.tree-node[data-type="org"]').each(function() {
+    function expandAll(side) {
+        var prefix = side === 'left' ? '#left-tree' : '#right-tree';
+        $(prefix + ' .tree-node[data-type="org"]').each(function() {
             var $this = $(this);
             var $children = $this.children('.tree-children');
             var $icon = $this.find('.tree-toggle .glyphicon');
@@ -594,25 +436,32 @@ $(document).ready(function() {
                 }
             }
         });
-    });
+    }
+    
+    $('#btn-expand-left').on('click', function() { expandAll('left'); });
+    $('#btn-expand-right').on('click', function() { expandAll('right'); });
     
     // ===== Свернуть всё =====
-    $('#btn-collapse-all').on('click', function() {
-        $('.tree-children').slideUp();
-        $('.tree-node[data-type="org"]').data('expanded', false);
-        $('.tree-node[data-type="org"] .tree-toggle .glyphicon').removeClass('glyphicon-folder-open').addClass('glyphicon-folder-close');
-    });
+    function collapseAll(side) {
+        var prefix = side === 'left' ? '#left-tree' : '#right-tree';
+        $(prefix + ' .tree-children').slideUp();
+        $(prefix + ' .tree-node[data-type="org"]').data('expanded', false);
+        $(prefix + ' .tree-node[data-type="org"] .tree-toggle .glyphicon').removeClass('glyphicon-folder-open').addClass('glyphicon-folder-close');
+    }
+    
+    $('#btn-collapse-left').on('click', function() { collapseAll('left'); });
+    $('#btn-collapse-right').on('click', function() { collapseAll('right'); });
     
     // ===== Поиск =====
-    $('#left-search').on('keyup', function() {
-        var query = $(this).val().toLowerCase();
+    function searchTree(side, query) {
+        var prefix = side === 'left' ? '#left-tree' : '#right-tree';
         
         if (query.length < 2) {
-            $('.tree-node').show();
+            $(prefix + ' .tree-node').show();
             return;
         }
         
-        $('.tree-node').each(function() {
+        $(prefix + ' .tree-node').each(function() {
             var text = $(this).find('.item-name').text().toLowerCase();
             if (text.indexOf(query) > -1) {
                 $(this).show();
@@ -621,90 +470,26 @@ $(document).ready(function() {
                 $(this).hide();
             }
         });
-    });
-    
-    // ===== Выбор целевой организации =====
-    $('#target-org-select').on('change', function() {
-        targetOrgId = parseInt($(this).val());
-        loadRightPanel(targetOrgId);
-    });
-    
-    // ===== Загрузка правой панели =====
-    function loadRightPanel(orgId) {
-        $.ajax({
-            url: '<?php echo URL::site('mancard/get_move_people'); ?>/' + orgId,
-            type: 'GET',
-            dataType: 'json',
-            success: function(response) {
-                if (response.success) {
-                    updateRightPanel(response.data, orgId);
-                }
-            }
-        });
     }
     
-    function updateRightPanel(people, orgId) {
-        var $tbody = $('#right-items-list tbody');
-        $tbody.empty();
-        
-        var orgName = $('#target-org-select option:selected').text();
-        $('#target-org-name').text(orgName);
-        
-        if (!people || people.length === 0) {
-            $tbody.append('<tr><td colspan="3" class="text-center text-muted"><span class="glyphicon glyphicon-info-sign"></span> <?php echo __('Нет сотрудников'); ?></td></tr>');
-            $('#right-items-count').text(0);
-            $('#target-org-people-count').text(0);
-            return;
-        }
-        
-        var count = 0;
-        $.each(people, function(index, person) {
-            count++;
-            var statusIcon = person.ACTIVE == 1 ? 'glyphicon glyphicon-user' : 'glyphicon glyphicon-user text-muted';
-            var cardsHtml = '';
-            if (person.CARDS && person.CARDS.length > 0) {
-                var cardBadges = [];
-                $.each(person.CARDS, function(idx, card) {
-                    var cardClass = getCardClass(card.CARDTYPE_NAME);
-                    var cardIcon = getCardIcon(card.CARDTYPE_NAME);
-                    var inactiveClass = card.ACTIVE == 1 ? '' : 'card-badge-inactive';
-                    var displayName = card.CARDTYPE_SMALLNAME || card.CARDTYPE_NAME;
-                    cardBadges.push('<span class="card-badge ' + cardClass + ' ' + inactiveClass + '" title="' + 
-                        card.CARDTYPE_NAME + (card.ACTIVE == 0 ? ' (неактивна)' : '') + '">' +
-                        '<span class="' + cardIcon + '"></span> ' +
-                        displayName + ': ' + card.ID_CARD +
-                        '</span>');
-                });
-                cardsHtml = cardBadges.join(' ');
-            } else {
-                cardsHtml = '<span class="text-muted" style="font-size: 10px;"><span class="glyphicon glyphicon-info-sign"></span> нет</span>';
-            }
-            
-            var row = '<tr>' +
-                '<td><span class="' + statusIcon + '"></span></td>' +
-                '<td>' + person.SURNAME + ' ' + person.NAME + ' ' + person.PATRONYMIC + 
-                (person.POST ? ' <small class="text-muted">(' + person.POST + ')</small>' : '') +
-                '</td>' +
-                '<td style="max-width: 200px;">' + cardsHtml + '</td>' +
-                '</tr>';
-            $tbody.append(row);
-        });
-        
-        $('#right-items-count').text(count);
-        $('#target-org-people-count').text(count);
-    }
+    $('#left-search').on('keyup', function() {
+        searchTree('left', $(this).val().toLowerCase());
+    });
     
-    // ===== Перемещение вправо =====
-    $('#btn-move-right').on('click', function() {
-        var selected = $('.item-checkbox:checked');
+    $('#right-search').on('keyup', function() {
+        searchTree('right', $(this).val().toLowerCase());
+    });
+    
+    // ===== Перемещение =====
+    $('#btn-move').on('click', function() {
+        var selected = $('#left-tree .item-checkbox:checked');
         if (selected.length === 0) {
             alert('<?php echo __('Не выбраны элементы для перемещения'); ?>');
             return;
         }
         
-        var targetOrgId = parseInt($('#target-org-select').val());
-        if (targetOrgId === 0 || isNaN(targetOrgId)) {
-            alert('<?php echo __('Выберите целевую организацию'); ?>');
+        if (!targetOrgId) {
+            alert('<?php echo __('Выберите целевую организацию в правой панели'); ?>');
             return;
         }
         
@@ -731,7 +516,7 @@ $(document).ready(function() {
             return;
         }
         
-        if (!confirm('Переместить ' + total + ' элементов в организацию "' + $('#target-org-select option:selected').text() + '"?')) {
+        if (!confirm('Переместить ' + total + ' элементов в организацию "' + targetOrgName + '" (ID: ' + targetOrgId + ')?')) {
             return;
         }
         
@@ -745,7 +530,7 @@ $(document).ready(function() {
             },
             dataType: 'json',
             beforeSend: function() {
-                $('#btn-move-right').prop('disabled', true).html('<span class="glyphicon glyphicon-refresh glyphicon-spin"></span>');
+                $('#btn-move').prop('disabled', true).html('<span class="glyphicon glyphicon-refresh glyphicon-spin" style="font-size: 2em;"></span><br><small><?php echo __('Выполняется...'); ?></small>');
             },
             success: function(response) {
                 if (response.success) {
@@ -753,14 +538,19 @@ $(document).ready(function() {
                     location.reload();
                 } else {
                     alert('Ошибка: ' + response.message);
-                    $('#btn-move-right').prop('disabled', false).html('<span class="glyphicon glyphicon-arrow-right" style="font-size: 2em;"></span><br><small><?php echo __('Переместить →'); ?></small>');
+                    $('#btn-move').prop('disabled', false).html('<span class="glyphicon glyphicon-arrow-right" style="font-size: 2em;"></span><br><small><?php echo __('Переместить →'); ?></small>');
                 }
             },
             error: function() {
-                alert('Ошибка при выполнении запроса');
-                $('#btn-move-right').prop('disabled', false).html('<span class="glyphicon glyphicon-arrow-right" style="font-size: 2em;"></span><br><small><?php echo __('Переместить →'); ?></small>');
+                alert('<?php echo __('Ошибка при выполнении запроса'); ?>');
+                $('#btn-move').prop('disabled', false).html('<span class="glyphicon glyphicon-arrow-right" style="font-size: 2em;"></span><br><small><?php echo __('Переместить →'); ?></small>');
             }
         });
+    });
+    
+    // ===== Обновление =====
+    $('#btn-refresh').on('click', function() {
+        location.reload();
     });
     
     // ===== Переключение вида =====
@@ -768,14 +558,42 @@ $(document).ready(function() {
         window.location.href = '<?php echo URL::site('mancard/index'); ?>';
     });
     
-    // ===== Обновление правой панели =====
-    $('#btn-refresh-right').on('click', function() {
-        loadRightPanel(targetOrgId);
-    });
-    
     // ===== Инициализация =====
-    targetOrgId = parseInt($('#target-org-select').val());
-    loadRightPanel(targetOrgId);
+    // Закрываем все папки кроме корня
+    $('.tree-children').hide();
+    $('.tree-node[data-type="org"]').data('expanded', false);
+    
+    // Открываем корень в левой панели
+    $('#left-tree-root .tree-children').show();
+    $('#left-tree-root .tree-node').data('expanded', true);
+    $('#left-tree-root .tree-toggle .glyphicon').removeClass('glyphicon-folder-close').addClass('glyphicon-folder-open');
+    
+    // Открываем корень в правой панели
+    $('#right-tree-root .tree-children').show();
+    $('#right-tree-root .tree-node').data('expanded', true);
+    $('#right-tree-root .tree-toggle .glyphicon').removeClass('glyphicon-folder-close').addClass('glyphicon-folder-open');
+    
     updateSelectedCount();
 });
+// ===== Инициализация Bootstrap Tooltips =====
+// Инициализируем все существующие tooltips
+$('[data-toggle="tooltip"]').tooltip({
+    placement: 'top',
+    trigger: 'hover',
+    container: 'body'
+});
+
+// Для динамически добавляемых элементов - используем делегирование
+$(document).on('mouseenter', '[data-toggle="tooltip"]', function() {
+    var $this = $(this);
+    // Если tooltip еще не инициализирован
+    if (!$this.data('bs.tooltip')) {
+        $this.tooltip({
+            placement: 'top',
+            trigger: 'hover',
+            container: 'body'
+        });
+    }
+});
+
 </script>
