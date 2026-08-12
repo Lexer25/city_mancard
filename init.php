@@ -8,6 +8,7 @@ Kohana::$config->load('menu')
         'url' => 'mancard/index',
         'icon' => 'fa-sitemap',
         'order' => 25,
+        'disabled' => false,
         'children' => array(
             array(
                 'title' => 'Управление',
