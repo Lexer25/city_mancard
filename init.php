@@ -1,6 +1,6 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 
-defined('MANCARD_VERSION') OR define('MANCARD_VERSION', '1.0.0');
+defined('MANCARD_VERSION') OR define('MANCARD_VERSION', '1.0.1');
 
 Kohana::$config->load('menu')
     ->set('mancard', array(
@@ -14,6 +14,7 @@ Kohana::$config->load('menu')
                 'title' => 'Управление',
                 'url' => 'mancard/index',
                 'icon' => 'fa-home',
+				'disabled' => true,
             ),
             array(
                 'title' => 'Массовое перемещение',

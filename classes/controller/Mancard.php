@@ -440,25 +440,55 @@ class Controller_Mancard extends Controller_Template {
         )));
     }
     
-    /**
-     * Страница массового перемещения
-     */
-    public function action_move()
-    {
-        $_SESSION['menu_active'] = 'mancard';
-        
-        $org_tree = Model::factory('Mancard')->getOrganizationTree();
-        $organizations = Model::factory('Mancard')->getAllOrganizations();
-        $all_people = Model::factory('Mancard')->getAllPeopleWithOrgs();
-        
-        $content = View::factory('mancard/move', array(
-            'org_tree' => $org_tree,
-            'organizations' => $organizations,
-            'all_people' => $all_people,
-        ));
-        
-        $this->template->content = $content;
+/**
+ * Страница массового перемещения
+ */
+public function action_move()
+{
+    $_SESSION['menu_active'] = 'mancard';
+    
+    // Получаем дочерние организации корня
+    $children = Model::factory('Mancard')->getChildOrganizations(1);
+    
+    // Получаем сотрудников корневой организации
+    $root_people = Model::factory('Mancard')->getPeopleByOrganization(1);
+    
+    // Создаем корневой элемент
+    $rootOrg = array(
+        'ID_ORG' => 1,
+        'NAME' => 'Корень',
+        'ID_PARENT' => 0,
+        'FLAG' => 0,
+        'PEOPLE_COUNT' => count($root_people),
+        'CHILDREN_COUNT' => count($children),
+        'CHILDREN' => $children,
+        'PEOPLE' => $root_people
+    );
+ 
+    $content = View::factory('mancard/move', array(
+        'org_tree' => array($rootOrg)
+        // Удаляем $organizations и $all_people - они не используются
+    ));
+    
+    $this->template->content = $content;
+}
+
+/**
+ * Построить дерево из плоского списка
+ */
+private function buildTreeFromFlat($flat, $parentId)
+{
+    $branch = array();
+    foreach ($flat as $item) {
+        if ($item['ID_PARENT'] == $parentId) {
+            $children = $this->buildTreeFromFlat($flat, $item['ID_ORG']);
+            $item['CHILDREN'] = $children;
+            $item['CHILDREN_COUNT'] = count($children);
+            $branch[] = $item;
+        }
     }
+    return $branch;
+}
     
     /**
      * AJAX: Получить дерево организаций для панели перемещения
@@ -508,7 +538,7 @@ class Controller_Mancard extends Controller_Template {
     {
         $this->auto_render = false;
         $post = $this->request->post();
-
+Kohana::$log->add(Log::INFO, '541 ' . Debug::vars($post));
         $source_org_id = (int) Arr::get($post, 'source_org_id', 0);
         $target_org_id = (int) Arr::get($post, 'target_org_id', 0);
         $move_people = Arr::get($post, 'move_people', array());
@@ -550,7 +580,7 @@ class Controller_Mancard extends Controller_Template {
             if (!empty($move_orgs)) {
                 $move_orgs = array_map('intval', $move_orgs);
                 $move_orgs = array_filter($move_orgs);
-                
+ Kohana::$log->add(Log::INFO, '583 ' . Debug::vars($move_orgs, $target_org_id));               
                 foreach ($move_orgs as $org_id) {
                     if ($org_id == 1) {
                         $result['errors'][] = 'Нельзя перемещать корневую организацию (ID: 1)';

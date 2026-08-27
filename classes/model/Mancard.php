@@ -189,33 +189,51 @@ public function getOrganizationTree()
     /**
      * Переместить организацию
      */
-    public function moveOrganization($id_org, $new_parent_id)
-    {
-        $id_org = (int)$id_org;
-        $new_parent_id = (int)$new_parent_id;
-        
-        // Проверяем, не пытаемся ли переместить в саму себя
-        if ($id_org == $new_parent_id) {
-            throw new Exception('Нельзя переместить организацию в саму себя');
-        }
-        
-        // Проверяем цикличность (нельзя переместить в подчиненную организацию)
-        $sql = 'SELECT ID_ORG FROM ORGANIZATION_GETPARENT(' . $id_org . ', ' . $new_parent_id . ')';
-        $query = DB::query(Database::SELECT, $sql)
-            ->execute(Database::instance('fb'))
-            ->as_array();
-        
-        if (!empty($query)) {
-            throw new Exception('Нельзя переместить организацию в подчиненную');
-        }
-        
-        $sql = 'UPDATE ORGANIZATION 
-                SET ID_PARENT = ' . $new_parent_id . ', TIME_STAMP = CURRENT_TIMESTAMP 
-                WHERE ID_ORG = ' . $id_org;
-        
-        DB::query(Database::UPDATE, $sql)
-            ->execute(Database::instance('fb'));
+/**
+ * Переместить организацию
+ */
+public function moveOrganization($id_org, $new_parent_id)
+{
+    $id_org = (int)$id_org;
+    $new_parent_id = (int)$new_parent_id;
+    Kohana::$log->add(Log::INFO, '196 ' . Debug::vars($id_org, $new_parent_id));
+    
+    // Проверяем, не пытаемся ли переместить в саму себя
+    if ($id_org == $new_parent_id) {
+        throw new Exception('Нельзя переместить организацию в саму себя');
     }
+    
+    // Проверяем цикличность (нельзя переместить в подчиненную организацию)
+    $sql = 'SELECT ID_ORG FROM ORGANIZATION_GETPARENT(1, ' . $new_parent_id . ')';
+    Kohana::$log->add(Log::INFO, '203 sql ' . $sql);
+    $query = DB::query(Database::SELECT, $sql)
+        ->execute(Database::instance('fb'))
+        ->as_array();
+    
+    // Проверяем, есть ли реальный ID_ORG (не NULL)
+    $has_cycle = false;
+    if (!empty($query)) {
+        foreach ($query as $row) {
+            if ($row['ID_ORG'] !== null) {
+                $has_cycle = true;
+                break;
+            }
+        }
+    }
+    
+    if ($has_cycle) {
+        Kohana::$log->add(Log::INFO, '210 sql Exception' . Debug::vars($query));
+        Kohana::$log->add(Log::INFO, '210 sql Exception');
+        throw new Exception('Нельзя переместить организацию в подчиненную');
+    }
+    
+    $sql = 'UPDATE ORGANIZATION 
+            SET ID_PARENT = ' . $new_parent_id . ', TIME_STAMP = CURRENT_TIMESTAMP 
+            WHERE ID_ORG = ' . $id_org;
+    Kohana::$log->add(Log::INFO, '215 sql ' . $sql);
+    DB::query(Database::UPDATE, $sql)
+        ->execute(Database::instance('fb'));
+}
     
     /**
      * Получить сотрудников организации
@@ -509,38 +527,40 @@ public function getOrganizationTree()
     /**
      * Получить подчиненные организации (для дерева)
      */
-    public function getChildOrganizations($parent_id)
-    {
-        $parent_id = (int)$parent_id;
-        
-        $sql = 'SELECT 
-                    o.ID_ORG, 
-                    o.NAME, 
-                    o.ID_PARENT, 
-                    o.FLAG,
-                    (SELECT COUNT(*) FROM PEOPLE WHERE ID_ORG = o.ID_ORG AND "ACTIVE" = 1) AS PEOPLE_COUNT
-                FROM ORGANIZATION o
-                WHERE o.ID_PARENT = ' . $parent_id . ' AND o.ID_DB = 1
-                ORDER BY o.NAME';
-        
-        $query = DB::query(Database::SELECT, iconv('UTF-8', 'windows-1251', $sql))
-            ->execute(Database::instance('fb'))
-            ->as_array();
-        
-        $result = array();
-        foreach ($query as $row) {
-            $result[] = array(
-                'ID_ORG' => $row['ID_ORG'],
-                'NAME' => iconv('windows-1251', 'UTF-8', $row['NAME']),
-                'ID_PARENT' => $row['ID_PARENT'],
-                'FLAG' => $row['FLAG'],
-                'PEOPLE_COUNT' => $row['PEOPLE_COUNT'],
-                'CHILDREN' => $this->getChildOrganizations($row['ID_ORG']),
-            );
-        }
-        
-        return $result;
+public function getChildOrganizations($parent_id)
+{
+    $parent_id = (int)$parent_id;
+    
+    $sql = 'SELECT 
+                o.ID_ORG, 
+                o.NAME, 
+                o.ID_PARENT, 
+                o.FLAG,
+                (SELECT COUNT(*) FROM PEOPLE WHERE ID_ORG = o.ID_ORG AND "ACTIVE" = 1) AS PEOPLE_COUNT,
+                (SELECT COUNT(*) FROM ORGANIZATION WHERE ID_PARENT = o.ID_ORG AND ID_DB = 1) AS CHILDREN_COUNT
+            FROM ORGANIZATION o
+            WHERE o.ID_PARENT = ' . $parent_id . ' AND o.ID_DB = 1
+            ORDER BY o.NAME';
+    
+    $query = DB::query(Database::SELECT, iconv('UTF-8', 'windows-1251', $sql))
+        ->execute(Database::instance('fb'))
+        ->as_array();
+    
+    $result = array();
+    foreach ($query as $row) {
+        $result[] = array(
+            'ID_ORG' => $row['ID_ORG'],
+            'NAME' => iconv('windows-1251', 'UTF-8', $row['NAME']),
+            'ID_PARENT' => $row['ID_PARENT'],
+            'FLAG' => $row['FLAG'],
+            'PEOPLE_COUNT' => (int)$row['PEOPLE_COUNT'],
+            'CHILDREN_COUNT' => (int)$row['CHILDREN_COUNT'],
+            'CHILDREN' => array() // Пустой массив, будет заполнен через AJAX
+        );
     }
+    
+    return $result;
+}
 	
 	/**
  * Получить всех сотрудников с информацией об организации
