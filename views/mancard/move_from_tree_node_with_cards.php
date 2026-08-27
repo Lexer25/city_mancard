@@ -1,7 +1,8 @@
 <?php
 $isRoot = ($org['ID_ORG'] == 1);
 $peopleCount = isset($org['PEOPLE_COUNT']) ? (int)$org['PEOPLE_COUNT'] : 0;
-$childrenCount = isset($org['CHILDREN']) ? count($org['CHILDREN']) : 0;
+// ===== ИСПРАВЛЕНО: используем CHILDREN_COUNT, если есть =====
+$childrenCount = isset($org['CHILDREN_COUNT']) ? (int)$org['CHILDREN_COUNT'] : count($org['CHILDREN']);
 $hasChildren = ($childrenCount > 0);
 $hasPeople = isset($org['PEOPLE']) && !empty($org['PEOPLE']);
 
@@ -26,7 +27,7 @@ if ($org['ID_ORG'] == 0) {
             <span style="font-size: 16px;"><?php echo $isRoot ? '📂' : '📁'; ?></span>
         </span>
         
-        <!-- ID_ORG перед названием (только если ID_ORG != 0) -->
+        <!-- ID_ORG перед названием -->
         <?php if ($org['ID_ORG'] != 0): ?>
             <span class="org-id" style="color: #999; font-size: 11px; font-family: monospace; margin-left: 3px;">
                 [<?php echo $org['ID_ORG']; ?>]
@@ -40,7 +41,7 @@ if ($org['ID_ORG'] == 0) {
             👤 <?php echo $peopleCount; ?>
         </span>
         
-        <!-- Бейдж с количеством дочерних организаций (ВСЕГДА) -->
+        <!-- ===== БЕЙДЖ С КОЛИЧЕСТВОМ ДОЧЕРНИХ ОРГАНИЗАЦИЙ ===== -->
         <?php if ($childrenCount > 0): ?>
             <span class="badge" style="margin-left: 3px; font-size: 10px; background-color: #5bc0de;">
                 📁 <?php echo $childrenCount; ?>

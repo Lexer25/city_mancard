@@ -1,7 +1,8 @@
 <?php
 $isRoot = ($org['ID_ORG'] == 1);
 $peopleCount = isset($org['PEOPLE_COUNT']) ? (int)$org['PEOPLE_COUNT'] : 0;
-$childrenCount = isset($org['CHILDREN']) ? count($org['CHILDREN']) : 0;
+
+$childrenCount = isset($org['CHILDREN_COUNT']) ? (int)$org['CHILDREN_COUNT'] : count($org['CHILDREN']);
 $hasChildren = ($childrenCount > 0);
 $hasPeople = isset($org['PEOPLE']) && !empty($org['PEOPLE']);
 

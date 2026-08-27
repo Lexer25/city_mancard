@@ -1066,7 +1066,7 @@ public function getOrgStructureLevelWithCards($org_id = 1)
         Kohana::$log->add(Log::ERROR, 'Error in getOrgStructureLevelWithCards: ' . $e->getMessage());
         throw $e;
     }
-    
+ Kohana::$log->add(Log::INFO, '1069 '.Debug::vars($result));   
     return $result;
 }
 

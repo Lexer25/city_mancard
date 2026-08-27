@@ -326,18 +326,20 @@ $(document).ready(function() {
             }
         });
     }
-    
+
 // ===== Рендеринг детей узла =====
 // ===== Рендеринг детей узла =====
 function renderNodeChildren($container, data, side) {
     $container.empty();
     var isLeft = side === 'left';
     
-    // Рендерим организации
     if (data.CHILDREN && data.CHILDREN.length > 0) {
         $.each(data.CHILDREN, function(index, child) {
             var peopleCount = child.PEOPLE_COUNT || 0;
+            
+            // ===== ИСПРАВЛЕНО: используем CHILDREN_COUNT из ответа =====
             var childrenCount = child.CHILDREN_COUNT || 0;
+            
             var checkboxId = side + '_org_' + child.ID_ORG;
             
             var $li = $('<li class="tree-node" data-org-id="' + child.ID_ORG + '" data-type="org" data-expanded="false">');
@@ -369,16 +371,16 @@ function renderNodeChildren($container, data, side) {
                 '👤 ' + peopleCount +
                 '</span>');
             
-            // Бейдж с количеством дочерних организаций
-            if (childrenCount > 0) {
-                $div.append('<span class="badge" style="margin-left: 3px; font-size: 10px; background-color: #5bc0de;">' +
-                    '📁 ' + childrenCount +
-                    '</span>');
-            }
+            // ===== БЕЙДЖ С КОЛИЧЕСТВОМ ДОЧЕРНИХ ОРГАНИЗАЦИЙ =====
+            // ИСПОЛЬЗУЕМ childrenCount ИЗ ОТВЕТА СЕРВЕРА
+            var childBadgeClass = childrenCount > 0 ? 'badge' : 'badge badge-empty';
+            var childBadgeStyle = childrenCount > 0 ? 'background-color: #5bc0de;' : 'background-color: #f5f5f5; color: #ccc;';
+            $div.append('<span class="' + childBadgeClass + '" style="margin-left: 3px; font-size: 10px; ' + childBadgeStyle + '">' +
+                '📁 ' + childrenCount +
+                '</span>');
             
             $li.append($div);
             
-            // ===== ВАЖНО: контейнер для дочерних элементов =====
             var $childrenUl = $('<ul class="tree-children" style="display:none;">');
             $li.append($childrenUl);
             
@@ -386,13 +388,12 @@ function renderNodeChildren($container, data, side) {
         });
     }
     
-    // ===== РЕНДЕРИМ СОТРУДНИКОВ (пиплов) =====
+    // ===== РЕНДЕРИМ СОТРУДНИКОВ =====
     if (data.PEOPLE && data.PEOPLE.length > 0) {
         $.each(data.PEOPLE, function(index, person) {
             var $li = $('<li class="tree-node" data-person-id="' + person.ID_PEP + '" data-type="person">');
             var $div = $('<div class="tree-item tree-item-person" data-person-id="' + person.ID_PEP + '" data-org-id="' + person.ID_ORG + '">');
             
-            // Чекбокс для сотрудников в левой панели
             if (isLeft) {
                 $div.append('<input type="checkbox" class="item-checkbox" ' +
                     'value="person_' + person.ID_PEP + '" ' +
@@ -400,12 +401,10 @@ function renderNodeChildren($container, data, side) {
                     'data-name="' + person.SURNAME + ' ' + person.NAME + '">');
             }
             
-            // Иконка пользователя
             var $toggle = $('<span class="tree-toggle">');
             $toggle.append('<span style="font-size: 16px;">👤</span>');
             $div.append($toggle);
             
-            // ID_PEP перед именем
             $div.append('<span class="person-id" style="color: #999; font-size: 11px; font-family: monospace; margin-left: 3px;">[' + person.ID_PEP + ']</span>');
             
             var fullName = person.SURNAME + ' ' + person.NAME + ' ' + person.PATRONYMIC;
@@ -420,7 +419,6 @@ function renderNodeChildren($container, data, side) {
         });
     }
     
-    // Если ничего нет
     if ($container.children().length === 0) {
         $container.html('<div class="text-muted" style="padding: 10px;"><span class="glyphicon glyphicon-info-sign"></span> Пусто</div>');
     }
