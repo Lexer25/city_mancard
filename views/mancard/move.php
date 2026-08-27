@@ -328,6 +328,7 @@ $(document).ready(function() {
     }
     
 // ===== Рендеринг детей узла =====
+// ===== Рендеринг детей узла =====
 function renderNodeChildren($container, data, side) {
     $container.empty();
     var isLeft = side === 'left';
@@ -377,6 +378,7 @@ function renderNodeChildren($container, data, side) {
             
             $li.append($div);
             
+            // ===== ВАЖНО: контейнер для дочерних элементов =====
             var $childrenUl = $('<ul class="tree-children" style="display:none;">');
             $li.append($childrenUl);
             
@@ -384,7 +386,7 @@ function renderNodeChildren($container, data, side) {
         });
     }
     
-    // ===== РЕНДЕРИМ СОТРУДНИКОВ С ID_PEP =====
+    // ===== РЕНДЕРИМ СОТРУДНИКОВ (пиплов) =====
     if (data.PEOPLE && data.PEOPLE.length > 0) {
         $.each(data.PEOPLE, function(index, person) {
             var $li = $('<li class="tree-node" data-person-id="' + person.ID_PEP + '" data-type="person">');
@@ -403,7 +405,7 @@ function renderNodeChildren($container, data, side) {
             $toggle.append('<span style="font-size: 16px;">👤</span>');
             $div.append($toggle);
             
-            // ===== ID_PEP ПЕРЕД ИМЕНЕМ =====
+            // ID_PEP перед именем
             $div.append('<span class="person-id" style="color: #999; font-size: 11px; font-family: monospace; margin-left: 3px;">[' + person.ID_PEP + ']</span>');
             
             var fullName = person.SURNAME + ' ' + person.NAME + ' ' + person.PATRONYMIC;
