@@ -971,9 +971,6 @@ public function getOrgStructureWithCards($org_id = 1)
 /**
  * Получить структуру организации для AJAX (один уровень) с картами
  */
-/**
- * Получить структуру организации для AJAX (один уровень) с картами
- */
 public function getOrgStructureLevelWithCards($org_id = 1)
 {
     $org_id = (int)$org_id;
@@ -985,60 +982,20 @@ public function getOrgStructureLevelWithCards($org_id = 1)
     );
     
     try {
-        // Получаем название организации
-        $sql = 'SELECT NAME FROM ORGANIZATION WHERE ID_ORG = ' . $org_id;
-        $query = DB::query(Database::SELECT, $sql)
-            ->execute(Database::instance('fb'))
-            ->as_array();
+        // ... получение названия и сотрудников ...
         
-        if (!empty($query)) {
-            $result['NAME'] = iconv('windows-1251', 'UTF-8', $query[0]['NAME']);
-        }
-        
-        // Получаем сотрудников с картами
-        $sql = 'SELECT 
-                    p.ID_PEP,
-                    p.SURNAME,
-                    p.NAME,
-                    p.PATRONYMIC,
-                    p.POST,
-                    p.PHONEWORK,
-                    p."ACTIVE",
-                    p.ID_ORG
-                FROM PEOPLE p
-                WHERE p.ID_ORG = ' . $org_id . '
-                AND p.ID_ORG NOT IN (2, 3)
-                ORDER BY p.SURNAME, p.NAME';
-        
-        $people_query = DB::query(Database::SELECT, $sql)
-            ->execute(Database::instance('fb'))
-            ->as_array();
-        
-        foreach ($people_query as $person) {
-            $person_data = array(
-                'ID_PEP' => $person['ID_PEP'],
-                'ID_ORG' => $person['ID_ORG'],
-                'SURNAME' => iconv('windows-1251', 'UTF-8', $person['SURNAME']),
-                'NAME' => iconv('windows-1251', 'UTF-8', $person['NAME']),
-                'PATRONYMIC' => iconv('windows-1251', 'UTF-8', $person['PATRONYMIC']),
-                'POST' => iconv('windows-1251', 'UTF-8', $person['POST']),
-                'PHONEWORK' => $person['PHONEWORK'],
-                'ACTIVE' => $person['ACTIVE'],
-                'CARDS' => $this->getPersonCards($person['ID_PEP']),
-                'TYPE' => 'person'
-            );
-            $result['PEOPLE'][] = $person_data;
-        }
-        
-        // Получаем подорганизации
+        // Получаем подорганизации с подсчетом дочерних в одном запросе
         $sql = 'SELECT 
                     o.ID_ORG, 
                     o.NAME, 
                     o.FLAG,
-                    (SELECT COUNT(*) FROM PEOPLE WHERE ID_ORG = o.ID_ORG AND "ACTIVE" = 1) AS PEOPLE_COUNT
+                    (SELECT COUNT(*) FROM PEOPLE WHERE ID_ORG = o.ID_ORG AND "ACTIVE" = 1) AS PEOPLE_COUNT,
+                    (SELECT COUNT(*) FROM ORGANIZATION WHERE ID_PARENT = o.ID_ORG AND ID_DB = 1 AND ID_ORG != 0) AS CHILDREN_COUNT
                 FROM ORGANIZATION o
                 WHERE o.ID_PARENT = ' . $org_id . '
                 AND o.ID_DB = 1
+                AND o.ID_ORG != 0
+                AND o.ID_ORG != ' . $org_id . '
                 ORDER BY o.NAME';
         
         $children_query = DB::query(Database::SELECT, iconv('UTF-8', 'windows-1251', $sql))
@@ -1047,25 +1004,22 @@ public function getOrgStructureLevelWithCards($org_id = 1)
         
         foreach ($children_query as $child) {
             $peopleCount = (int)$child['PEOPLE_COUNT'];
-            $has_children = $this->hasChildrenOrPeople($child['ID_ORG']);
+            $childrenCount = (int)$child['CHILDREN_COUNT'];
             
             $result['CHILDREN'][] = array(
                 'ID_ORG' => $child['ID_ORG'],
                 'NAME' => iconv('windows-1251', 'UTF-8', $child['NAME']),
                 'FLAG' => $child['FLAG'],
                 'TYPE' => 'org',
-                'HAS_CHILDREN' => $has_children,
+                'HAS_CHILDREN' => ($childrenCount > 0),
                 'EXPANDED' => false,
-                'PEOPLE_COUNT' => $peopleCount
+                'PEOPLE_COUNT' => $peopleCount,
+                'CHILDREN_COUNT' => $childrenCount
             );
         }
         
     } catch (Exception $e) {
-        // Логируем ошибку
-        Kohana::$log->add(Log::ERROR, 'Error in getOrgStructureLevelWithCards: ' . $e->getMessage());
-        Kohana::$log->add(Log::ERROR, 'SQL: ' . $sql);
-        
-        // Возвращаем ошибку в JSON
+        Kohana::$log->add(Log::ERROR, 'Error: ' . $e->getMessage());
         throw $e;
     }
     
