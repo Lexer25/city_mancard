@@ -353,11 +353,12 @@ function renderNodeChildren($container, data, side) {
                 }
             }
             
-            // ===== ИКОНКА ПАПКИ - ЭМОДЗИ =====
             var $toggle = $('<span class="tree-toggle">');
-            $toggle.append('<span style="font-size: 16px;">📁</span>');  // закрытая папка
+            $toggle.append('<span style="font-size: 16px;">📁</span>');
             $div.append($toggle);
             
+            // ID_ORG перед названием
+            $div.append('<span class="org-id" style="color: #999; font-size: 11px; font-family: monospace; margin-left: 3px;">[' + child.ID_ORG + ']</span>');
             $div.append('<span class="item-name">' + child.NAME + '</span>');
             
             // Бейдж с количеством сотрудников
@@ -383,7 +384,7 @@ function renderNodeChildren($container, data, side) {
         });
     }
     
-    // ===== РЕНДЕРИМ СОТРУДНИКОВ =====
+    // ===== РЕНДЕРИМ СОТРУДНИКОВ С ID_PEP =====
     if (data.PEOPLE && data.PEOPLE.length > 0) {
         $.each(data.PEOPLE, function(index, person) {
             var $li = $('<li class="tree-node" data-person-id="' + person.ID_PEP + '" data-type="person">');
@@ -397,10 +398,13 @@ function renderNodeChildren($container, data, side) {
                     'data-name="' + person.SURNAME + ' ' + person.NAME + '">');
             }
             
-            // ===== ИКОНКА ПОЛЬЗОВАТЕЛЯ - ЭМОДЗИ =====
+            // Иконка пользователя
             var $toggle = $('<span class="tree-toggle">');
             $toggle.append('<span style="font-size: 16px;">👤</span>');
             $div.append($toggle);
+            
+            // ===== ID_PEP ПЕРЕД ИМЕНЕМ =====
+            $div.append('<span class="person-id" style="color: #999; font-size: 11px; font-family: monospace; margin-left: 3px;">[' + person.ID_PEP + ']</span>');
             
             var fullName = person.SURNAME + ' ' + person.NAME + ' ' + person.PATRONYMIC;
             $div.append('<span class="item-name">' + fullName + '</span>');
@@ -430,10 +434,10 @@ function renderNodeChildren($container, data, side) {
         var orgName = $(this).data('org-name');
         
         if (!orgId) return;
-        if (orgId == 1) {
+       /*  if (orgId == 1) {
             alert('<?php echo __('Нельзя выбрать корневую организацию как цель'); ?>');
             return;
-        }
+        } */
         
         // Снимаем выделение со всех
         $('#right-tree .tree-item-org').removeClass('tree-item-selected');
@@ -647,5 +651,6 @@ $(document).on('mouseenter', '[data-toggle="tooltip"]', function() {
         });
     }
 });
+
 
 </script>

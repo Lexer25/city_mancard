@@ -447,27 +447,38 @@ public function action_move()
 {
     $_SESSION['menu_active'] = 'mancard';
     
-    // Получаем дочерние организации корня
-    $children = Model::factory('Mancard')->getChildOrganizations(1);
+    // Получаем все организации
+    $org_tree = Model::factory('Mancard')->getOrganizationTree();
     
-    // Получаем сотрудников корневой организации
-    $root_people = Model::factory('Mancard')->getPeopleByOrganization(1);
+    // Находим корень
+    $rootOrg = null;
+    foreach ($org_tree as $org) {
+        if ($org['ID_ORG'] == 1) {
+            $rootOrg = $org;
+            $rootOrg['CHILDREN'] = Model::factory('Mancard')->getChildOrganizations(1);
+            $rootOrg['CHILDREN_COUNT'] = count($rootOrg['CHILDREN']);
+            $rootOrg['PEOPLE'] = Model::factory('Mancard')->getPeopleByOrganization(1);
+            $rootOrg['PEOPLE_COUNT'] = count($rootOrg['PEOPLE']);
+            break;
+        }
+    }
     
-    // Создаем корневой элемент
-    $rootOrg = array(
-        'ID_ORG' => 1,
-        'NAME' => 'Корень',
-        'ID_PARENT' => 0,
-        'FLAG' => 0,
-        'PEOPLE_COUNT' => count($root_people),
-        'CHILDREN_COUNT' => count($children),
-        'CHILDREN' => $children,
-        'PEOPLE' => $root_people
-    );
- 
+    // Если корень не найден (маловероятно)
+    if (!$rootOrg) {
+        $rootOrg = array(
+            'ID_ORG' => 1,
+            'NAME' => 'Корень',
+            'ID_PARENT' => 0,
+            'FLAG' => 0,
+            'PEOPLE_COUNT' => 0,
+            'CHILDREN_COUNT' => 0,
+            'CHILDREN' => array(),
+            'PEOPLE' => array()
+        );
+    }
+    
     $content = View::factory('mancard/move', array(
         'org_tree' => array($rootOrg)
-        // Удаляем $organizations и $all_people - они не используются
     ));
     
     $this->template->content = $content;
