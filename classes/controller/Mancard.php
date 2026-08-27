@@ -10,31 +10,52 @@ class Controller_Mancard extends Controller_Template {
         $this->set_full_width(true);
     }
     
-    /**
-     * Главная страница - дерево организаций + список сотрудников
-     */
-    public function action_index()
-    {
-        $org_id = (int) $this->request->param('id', 1);
-        
-        // Получаем дерево организаций
-        $org_tree = Model::factory('Mancard')->getOrganizationTree();
-        
-        // Получаем сотрудников выбранной организации
-        $people_list = Model::factory('Mancard')->getPeopleByOrganization($org_id);
-        
-        // Получаем информацию о текущей организации
-        $current_org = Model::factory('Mancard')->getOrganization($org_id);
-        
-        $content = View::factory('mancard/index', array(
-            'org_tree' => $org_tree,
-            'people_list' => $people_list,
-            'current_org' => $current_org,
-            'current_org_id' => $org_id,
-        ));
-        
-        $this->template->content = $content;
+/**
+ * Главная страница - дерево организаций + категории доступа
+ */
+public function action_index()
+{
+    $_SESSION['menu_active'] = 'mancard';
+    $this->set_full_width(true);
+    
+    // Получаем корневую организацию с дочерними элементами
+    $org_tree = Model::factory('Mancard')->getOrganizationTree();
+    
+    // Находим корень
+    $rootOrg = null;
+    foreach ($org_tree as $org) {
+        if ($org['ID_ORG'] == 1) {
+            $rootOrg = $org;
+            // Загружаем дочерние организации корня (только первый уровень)
+            $rootOrg['CHILDREN'] = Model::factory('Mancard')->getChildOrganizations(1);
+            $rootOrg['CHILDREN_COUNT'] = count($rootOrg['CHILDREN']);
+            // Загружаем сотрудников корня
+            $rootOrg['PEOPLE'] = Model::factory('Mancard')->getPeopleByOrganization(1);
+            $rootOrg['PEOPLE_COUNT'] = count($rootOrg['PEOPLE']);
+            break;
+        }
     }
+    
+    // Если корень не найден
+    if (!$rootOrg) {
+        $rootOrg = array(
+            'ID_ORG' => 1,
+            'NAME' => 'Корень',
+            'ID_PARENT' => 0,
+            'FLAG' => 0,
+            'PEOPLE_COUNT' => 0,
+            'CHILDREN_COUNT' => 0,
+            'CHILDREN' => array(),
+            'PEOPLE' => array()
+        );
+    }
+    
+    $content = View::factory('mancard/index', array(
+        'org_tree' => array($rootOrg)
+    ));
+    
+    $this->template->content = $content;
+}
     
     /**
      * AJAX: Получить сотрудников организации

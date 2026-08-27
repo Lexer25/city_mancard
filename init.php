@@ -14,7 +14,7 @@ Kohana::$config->load('menu')
                 'title' => 'Управление',
                 'url' => 'mancard/index',
                 'icon' => 'fa-home',
-				'disabled' => true,
+				'disabled' => false,
             ),
             array(
                 'title' => 'Массовое перемещение',

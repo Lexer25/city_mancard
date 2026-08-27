@@ -124,7 +124,7 @@
 }
 .info-item .label {
     display: inline-block;
-    width: 120px;
+    width: 140px;
     font-weight: 600;
     color: #555;
 }
@@ -413,42 +413,28 @@
                                 <button class="btn btn-xs btn-default pull-right" id="clear-search-results"><span class="glyphicon glyphicon-remove"></span></button>
                             </div>
                             <ul class="list-unstyled" id="search-results-list" style="margin: 0; padding: 5px;">
-                                <!-- Результаты будут добавляться сюда -->
                             </ul>
                         </div>
                         
                         <!-- Дерево -->
                         <div class="move-list" id="org-tree-container" style="max-height: 450px; overflow-y: auto; overflow-x: auto; padding: 5px;">
                             <ul class="file-tree" id="file-tree-root">
-                                <li class="tree-node" data-org-id="1" data-type="org" data-expanded="false">
-                                    <div class="tree-item tree-item-org">
-                                        <span class="tree-toggle">
-                                            <span class="glyphicon glyphicon-folder-open"></span>
-                                        </span>
-                                        <span class="item-name org-name"><strong><?php echo __('Корень'); ?></strong></span>
-                                        <span class="badge" style="margin-left: 5px; font-size: 10px; background-color: #337ab7;" id="root-people-count">
-                                            <span class="glyphicon glyphicon-user"></span> 0
-                                        </span>
-                                        <div class="org-actions pull-right">
-                                            <button class="btn btn-xs btn-info btn-add-child" title="<?php echo __('Добавить подразделение'); ?>">
-                                                <span class="glyphicon glyphicon-plus"></span>
-                                            </button>
-                                        </div>
-                                        <span class="id-tooltip">ID_ORG: 1</span>
-                                    </div>
-                                    <ul class="tree-children" id="root-children">
-                                        <?php if (isset($org_tree) && !empty($org_tree)): ?>
-                                            <?php foreach ($org_tree as $org): ?>
-                                                <?php if ($org['ID_PARENT'] == 1): ?>
-                                                    <?php echo View::factory('mancard/tree_node_with_cards', array(
-                                                        'org' => $org,
-                                                        'level' => 0
-                                                    )); ?>
-                                                <?php endif; ?>
-                                            <?php endforeach; ?>
-                                        <?php endif; ?>
-                                    </ul>
-                                </li>
+                                <?php 
+                                $rootOrg = null;
+                                foreach ($org_tree as $org) {
+                                    if ($org['ID_ORG'] == 1) {
+                                        $rootOrg = $org;
+                                        break;
+                                    }
+                                }
+                                
+                                if ($rootOrg): 
+                                ?>
+                                    <?php echo View::factory('mancard/index_tree_node', array(
+                                        'org' => $rootOrg,
+                                        'level' => 0
+                                    )); ?>
+                                <?php endif; ?>
                             </ul>
                         </div>
                         
@@ -546,7 +532,6 @@
 <?php echo View::factory('mancard/edit_person'); ?>
 
 <script>
-// ===== Весь JavaScript без изменений =====
 $(document).ready(function() {
     var currentEntityType = null;
     var currentEntityId = null;
@@ -555,6 +540,41 @@ $(document).ready(function() {
     var personAccessIds = [];
     var isDirty = false;
     var searchTimeout = null;
+    
+    // ===== Функция получения CSS класса для типа карты =====
+    function getCardClass(cardType) {
+        var typeMap = {
+            'Карта EM-marine': 'card-badge-rfid',
+            'RFID': 'card-badge-rfid',
+            'FP': 'card-badge-fp',
+            'Отпечаток пальца': 'card-badge-fp',
+            'ШК': 'card-badge-barcode',
+            'Штрих-код': 'card-badge-barcode',
+            'BAR-code': 'card-badge-barcode',
+            'ГРЗ': 'card-badge-grz',
+            'grz': 'card-badge-grz',
+            'FaceID': 'card-badge-faceid',
+            'Распознавание лица': 'card-badge-faceid'
+        };
+        return typeMap[cardType] || 'card-badge-default';
+    }
+    
+    function getCardIcon(cardType) {
+        var iconMap = {
+            'Карта EM-marine': 'glyphicon glyphicon-credit-card',
+            'RFID': 'glyphicon glyphicon-credit-card',
+            'FP': 'glyphicon glyphicon-hand-up',
+            'Отпечаток пальца': 'glyphicon glyphicon-hand-up',
+            'ШК': 'glyphicon glyphicon-barcode',
+            'Штрих-код': 'glyphicon glyphicon-barcode',
+            'BAR-code': 'glyphicon glyphicon-barcode',
+            'ГРЗ': 'glyphicon glyphicon-road',
+            'grz': 'glyphicon glyphicon-road',
+            'FaceID': 'glyphicon glyphicon-user',
+            'Распознавание лица': 'glyphicon glyphicon-user'
+        };
+        return iconMap[cardType] || 'glyphicon glyphicon-credit-card';
+    }
     
     // ===== Обновление ID информации при наведении =====
     function updateHoverInfo(type, id, orgId) {
@@ -621,101 +641,24 @@ $(document).ready(function() {
         }
     });
     
-    // ===== Функция получения CSS класса для типа карты =====
-    function getCardClass(cardType) {
-        var typeMap = {
-            'Карта EM-marine': 'card-badge-rfid',
-            'RFID': 'card-badge-rfid',
-            'FP': 'card-badge-fp',
-            'Отпечаток пальца': 'card-badge-fp',
-            'ШК': 'card-badge-barcode',
-            'Штрих-код': 'card-badge-barcode',
-            'BAR-code': 'card-badge-barcode',
-            'ГРЗ': 'card-badge-grz',
-            'grz': 'card-badge-grz',
-            'FaceID': 'card-badge-faceid',
-            'Распознавание лица': 'card-badge-faceid'
-        };
-        return typeMap[cardType] || 'card-badge-default';
-    }
-    
-    // ===== Функция получения иконки для типа карты =====
-    function getCardIcon(cardType) {
-        var iconMap = {
-            'Карта EM-marine': 'glyphicon glyphicon-credit-card',
-            'RFID': 'glyphicon glyphicon-credit-card',
-            'FP': 'glyphicon glyphicon-hand-up',
-            'Отпечаток пальца': 'glyphicon glyphicon-hand-up',
-            'ШК': 'glyphicon glyphicon-barcode',
-            'Штрих-код': 'glyphicon glyphicon-barcode',
-            'BAR-code': 'glyphicon glyphicon-barcode',
-            'ГРЗ': 'glyphicon glyphicon-road',
-            'grz': 'glyphicon glyphicon-road',
-            'FaceID': 'glyphicon glyphicon-user',
-            'Распознавание лица': 'glyphicon glyphicon-user'
-        };
-        return iconMap[cardType] || 'glyphicon glyphicon-credit-card';
-    }
-    
-    // ===== Функция рендеринга сотрудника с картами =====
-    function renderPersonItem(person) {
-        var fullName = person.SURNAME + ' ' + person.NAME + ' ' + person.PATRONYMIC;
-        var statusClass = person.ACTIVE == 1 ? '' : 'person-status-inactive';
-        var statusIcon = person.ACTIVE == 1 ? 'glyphicon glyphicon-user' : 'glyphicon glyphicon-user';
-        var statusColor = person.ACTIVE == 1 ? '' : 'text-muted';
-        
-        var cardsHtml = '';
-        if (person.CARDS && person.CARDS.length > 0) {
-            cardsHtml = '<span class="cards-container">';
-            $.each(person.CARDS, function(idx, card) {
-                var cardClass = getCardClass(card.CARDTYPE_NAME);
-                var cardIcon = getCardIcon(card.CARDTYPE_NAME);
-                var inactiveClass = card.ACTIVE == 1 ? '' : 'card-badge-inactive';
-                var displayName = card.CARDTYPE_SMALLNAME || card.CARDTYPE_NAME;
-                
-                cardsHtml += '<span class="card-badge ' + cardClass + ' ' + inactiveClass + '" title="' + 
-                    card.CARDTYPE_NAME + (card.ACTIVE == 0 ? ' (неактивна)' : '') + '">' +
-                    '<span class="' + cardIcon + '"></span> ' +
-                    displayName + ': ' + card.ID_CARD +
-                    '</span>';
-            });
-            cardsHtml += '</span>';
-        } else {
-            cardsHtml = '<span class="text-muted" style="font-size: 10px; margin-left: 5px;">' +
-                '<span class="glyphicon glyphicon-info-sign"></span> нет идентификаторов</span>';
-        }
-        
-        var orgId = person.ID_ORG || '';
-        
-        return '<div class="tree-item tree-item-person ' + statusClass + '" data-person-id="' + person.ID_PEP + '" data-org-id="' + orgId + '">' +
-            '<span class="tree-toggle">' +
-            '<span class="' + statusIcon + ' ' + statusColor + '"></span>' +
-            '</span>' +
-            '<span class="item-name person-name ' + statusColor + '">' + fullName + '</span>' +
-            (person.POST ? ' <span class="person-post">(' + person.POST + ')</span>' : '') +
-            cardsHtml +
-            '<span class="id-tooltip">ID_PEP: ' + person.ID_PEP + ' | ID_ORG: ' + (orgId || '?') + '</span>' +
-            '</div>';
-    }
-    
     // ===== Переключение узла =====
     $(document).on('click', '.tree-toggle', function(e) {
         e.stopPropagation();
         var $node = $(this).closest('.tree-node');
         var $children = $node.children('.tree-children');
-        var $icon = $(this).find('.glyphicon');
+        var $icon = $(this).find('span');
         
         if ($node.data('type') === 'org') {
             if ($children.is(':visible')) {
                 $children.slideUp();
-                $icon.removeClass('glyphicon-folder-open').addClass('glyphicon-folder-close');
+                $icon.html('📁');
                 $node.data('expanded', false);
             } else {
                 if ($children.children().length === 0) {
                     loadNodeContent($node);
                 } else {
                     $children.slideDown();
-                    $icon.removeClass('glyphicon-folder-close').addClass('glyphicon-folder-open');
+                    $icon.html('📂');
                     $node.data('expanded', true);
                 }
             }
@@ -724,10 +667,9 @@ $(document).ready(function() {
     
     // ===== Загрузка содержимого узла =====
     function loadNodeContent($node) {
-		//console.log('=== 716 loadNodeContent вызвана для org:', $node.data('org-id'));
         var orgId = $node.data('org-id');
         var $children = $node.children('.tree-children');
-        var $icon = $node.find('.tree-toggle .glyphicon');
+        var $icon = $node.find('.tree-toggle span');
         
         $.ajax({
             url: '<?php echo URL::site('mancard/get_org_structure_cards'); ?>/' + orgId,
@@ -740,7 +682,7 @@ $(document).ready(function() {
                 if (response.success && response.data) {
                     renderNodeChildren($children, response.data);
                     $children.slideDown();
-                    $icon.removeClass('glyphicon-folder-close').addClass('glyphicon-folder-open');
+                    $icon.html('📂');
                     $node.data('expanded', true);
                 } else {
                     $children.html('<div class="text-muted" style="padding: 10px;"><span class="glyphicon glyphicon-info-sign"></span> <?php echo __('Нет данных'); ?></div>');
@@ -752,105 +694,100 @@ $(document).ready(function() {
         });
     }
     
-  // ===== Рендеринг детей узла с картами =====
-
-// ===== Рендеринг детей узла с картами =====
-function renderNodeChildren($container, data) {
-    console.log('=== renderNodeChildren ВЫЗВАНА ===');
-    console.log('DATA from server:', data);
-    $container.empty();
-    
-    if (data.CHILDREN && data.CHILDREN.length > 0) {
-        $.each(data.CHILDREN, function(index, child) {
-            var hasChildren = child.HAS_CHILDREN || false;
-            var peopleCount = child.PEOPLE_COUNT !== undefined ? child.PEOPLE_COUNT : 0;
-            var childrenCount = child.CHILDREN_COUNT !== undefined ? child.CHILDREN_COUNT : 0;
-            
-            console.log('Child:', child.NAME, 'People:', peopleCount, 'Children:', childrenCount);
-            
-            var $li = $('<li class="tree-node" data-org-id="' + child.ID_ORG + '" data-type="org" data-expanded="false">');
-            var $div = $('<div class="tree-item tree-item-org">');
-            
-            // Иконка папки
-            var $toggle = $('<span class="tree-toggle">');
-            $toggle.append('<span class="glyphicon glyphicon-folder-close"></span>');
-            $div.append($toggle);
-            
-            // Название
-            $div.append('<span class="item-name org-name">' + child.NAME + '</span>');
-            
-            // Бейдж с количеством сотрудников (голубой) - ВСЕГДА ОТОБРАЖАЕТСЯ
-            var peopleBadgeClass = peopleCount > 0 ? 'badge' : 'badge badge-empty';
-            var peopleBadgeStyle = peopleCount > 0 ? 'background-color: #337ab7;' : 'background-color: #e7e7e7; color: #999;';
-            $div.append('<span class="' + peopleBadgeClass + '" style="margin-left: 5px; font-size: 10px; ' + peopleBadgeStyle + '">' +
-                '<span class="glyphicon glyphicon-user"></span> ' + peopleCount +
-                '</span>');
-            
-            // Бейдж с количеством дочерних организаций (синий) - ВСЕГДА ОТОБРАЖАЕТСЯ
-            var childrenBadgeClass = childrenCount > 0 ? 'badge' : 'badge badge-empty';
-            var childrenBadgeStyle = childrenCount > 0 ? 'background-color: #5bc0de;' : 'background-color: #e7e7e7; color: #999;';
-            $div.append('<span class="' + childrenBadgeClass + '" style="margin-left: 3px; font-size: 10px; ' + childrenBadgeStyle + '">' +
-                '<span class="glyphicon glyphicon-folder-close"></span> ' + childrenCount +
-                '</span>');
-            
-            // Кнопки действий
-            var actionsHtml = '<div class="org-actions pull-right">' +
-                '<button class="btn btn-xs btn-info btn-add-child" title="<?php echo __('Добавить подразделение'); ?>">' +
-                '<span class="glyphicon glyphicon-plus"></span>' +
-                '</button>' +
-                '<button class="btn btn-xs btn-warning btn-rename-org" title="<?php echo __('Переименовать'); ?>">' +
-                '<span class="glyphicon glyphicon-pencil"></span>' +
-                '</button>';
-            if (child.ID_ORG != 1) {
-                actionsHtml += '<button class="btn btn-xs btn-danger btn-delete-org" title="<?php echo __('Удалить организацию'); ?>">' +
-                    '<span class="glyphicon glyphicon-trash"></span>' +
+    // ===== Рендеринг детей узла =====
+    function renderNodeChildren($container, data) {
+        $container.empty();
+        
+        // Рендерим организации
+        if (data.CHILDREN && data.CHILDREN.length > 0) {
+            $.each(data.CHILDREN, function(index, child) {
+                var peopleCount = child.PEOPLE_COUNT || 0;
+                var childrenCount = child.CHILDREN_COUNT || 0;
+                
+                var $li = $('<li class="tree-node" data-org-id="' + child.ID_ORG + '" data-type="org" data-expanded="false">');
+                var $div = $('<div class="tree-item tree-item-org">');
+                
+                var $toggle = $('<span class="tree-toggle">');
+                $toggle.append('<span style="font-size: 16px;">📁</span>');
+                $div.append($toggle);
+                
+                $div.append('<span class="org-id" style="color: #999; font-size: 11px; font-family: monospace; margin-left: 3px;">[' + child.ID_ORG + ']</span>');
+                $div.append('<span class="item-name org-name">' + child.NAME + '</span>');
+                
+                var badgeClass = peopleCount > 0 ? 'badge' : 'badge badge-empty';
+                var badgeStyle = peopleCount > 0 ? 'background-color: #337ab7;' : 'background-color: #f5f5f5; color: #ccc;';
+                $div.append('<span class="' + badgeClass + '" style="margin-left: 5px; font-size: 10px; ' + badgeStyle + '">' +
+                    '👤 ' + peopleCount +
+                    '</span>');
+                
+                if (childrenCount > 0) {
+                    $div.append('<span class="badge" style="margin-left: 3px; font-size: 10px; background-color: #5bc0de;">' +
+                        '📁 ' + childrenCount +
+                        '</span>');
+                }
+                
+                var actionsHtml = '<div class="org-actions pull-right">' +
+                    '<button class="btn btn-xs btn-info btn-add-child" title="<?php echo __('Добавить подразделение'); ?>">' +
+                    '<span class="glyphicon glyphicon-plus"></span>' +
+                    '</button>' +
+                    '<button class="btn btn-xs btn-warning btn-rename-org" title="<?php echo __('Переименовать'); ?>">' +
+                    '<span class="glyphicon glyphicon-pencil"></span>' +
                     '</button>';
-            }
-            actionsHtml += '</div>';
-            $div.append(actionsHtml);
-            
-            // ID тултип
-            $div.append('<span class="id-tooltip">ID_ORG: ' + child.ID_ORG + '</span>');
-            
-            $li.append($div);
-            
-            // Контейнер для дочерних элементов
-            var $childrenUl = $('<ul class="tree-children" style="display:none;">');
-            $li.append($childrenUl);
-            
-            $container.append($li);
-        });
+                if (child.ID_ORG != 1) {
+                    actionsHtml += '<button class="btn btn-xs btn-danger btn-delete-org" title="<?php echo __('Удалить организацию'); ?>">' +
+                        '<span class="glyphicon glyphicon-trash"></span>' +
+                        '</button>';
+                }
+                actionsHtml += '</div>';
+                $div.append(actionsHtml);
+                
+                $li.append($div);
+                
+                var $childrenUl = $('<ul class="tree-children" style="display:none;">');
+                $li.append($childrenUl);
+                
+                $container.append($li);
+            });
+        }
+        
+        // Рендерим сотрудников
+        if (data.PEOPLE && data.PEOPLE.length > 0) {
+            $.each(data.PEOPLE, function(index, person) {
+                var $li = $('<li class="tree-node" data-person-id="' + person.ID_PEP + '" data-type="person">');
+                var $div = $('<div class="tree-item tree-item-person" data-person-id="' + person.ID_PEP + '" data-org-id="' + person.ID_ORG + '">');
+                
+                var $toggle = $('<span class="tree-toggle">');
+                $toggle.append('<span style="font-size: 16px;">👤</span>');
+                $div.append($toggle);
+                
+                $div.append('<span class="person-id" style="color: #999; font-size: 11px; font-family: monospace; margin-left: 3px;">[' + person.ID_PEP + ']</span>');
+                
+                var fullName = person.SURNAME + ' ' + person.NAME + ' ' + person.PATRONYMIC;
+                $div.append('<span class="item-name">' + fullName + '</span>');
+                
+                if (person.POST) {
+                    $div.append('<span class="person-post" style="color: #999; font-size: 11px; margin-left: 5px;">(' + person.POST + ')</span>');
+                }
+                
+                $li.append($div);
+                $container.append($li);
+            });
+        }
+        
+        if ($container.children().length === 0) {
+            $container.html('<div class="text-muted" style="padding: 10px;"><span class="glyphicon glyphicon-info-sign"></span> Пусто</div>');
+        }
+        
+        updateTotalOrgs();
     }
-    
-    // Сотрудники
-    if (data.PEOPLE && data.PEOPLE.length > 0) {
-        $.each(data.PEOPLE, function(index, person) {
-            var $li = $('<li class="tree-node" data-person-id="' + person.ID_PEP + '" data-type="person">');
-            var html = renderPersonItem(person);
-            $li.append(html);
-            $container.append($li);
-        });
-    }
-    
-    if ($container.children().length === 0) {
-        $container.html('<div class="text-muted" style="padding: 10px;"><span class="glyphicon glyphicon-info-sign"></span> <?php echo __('Пусто'); ?></div>');
-    }
-    
-    updateTotalOrgs();
-}
     
     // ===== Обновление счетчиков =====
-    function updateRootCount() {
-        var count = $('#root-children .tree-node[data-type="person"]').length;
-        $('#root-people-count').text(count);
-    }
-    
     function updateTotalOrgs() {
         var count = $('.tree-node[data-type="org"]').length - 1;
         $('#total-orgs').text(count);
     }
     
-    // ===== Клик по организации или сотруднику =====
+    // ===== Клик по организации =====
     $(document).on('click', '.tree-item-org', function(e) {
         e.stopPropagation();
         var $node = $(this).closest('.tree-node');
@@ -865,6 +802,7 @@ function renderNodeChildren($container, data) {
         }
     });
     
+    // ===== Клик по сотруднику =====
     $(document).on('click', '.tree-item-person', function(e) {
         e.stopPropagation();
         var personId = $(this).data('person-id');
@@ -1036,50 +974,10 @@ function renderNodeChildren($container, data) {
         });
     }
     
-    // ===== Подсветка отличий =====
-    function highlightDifferences() {
-        $('.access-item').each(function() {
-            var $item = $(this);
-            var $checkbox = $item.find('.access-checkbox');
-            var id = parseInt($checkbox.val());
-            var isOrg = orgAccessIds.indexOf(id) !== -1;
-            var isPerson = personAccessIds.indexOf(id) !== -1;
-            
-            if (isPerson !== isOrg) {
-                $item.addClass('different');
-            } else {
-                $item.removeClass('different');
-            }
-        });
-    }
-    
-    // ===== Обновление счетчика =====
     function updateAccessCount() {
         var count = $('.access-checkbox:checked').length;
         $('#access-count').text(count);
     }
-    
-    // ===== Выбрать все =====
-    $('#btn-select-all-access').on('click', function() {
-        $('.access-checkbox').prop('checked', true);
-        isDirty = true;
-        $('#btn-save-access').addClass('btn-warning').removeClass('btn-success');
-        updateAccessCount();
-        if (currentEntityType === 'person') {
-            highlightDifferences();
-        }
-    });
-    
-    // ===== Снять все =====
-    $('#btn-deselect-all-access').on('click', function() {
-        $('.access-checkbox').prop('checked', false);
-        isDirty = true;
-        $('#btn-save-access').addClass('btn-warning').removeClass('btn-success');
-        updateAccessCount();
-        if (currentEntityType === 'person') {
-            highlightDifferences();
-        }
-    });
     
     // ===== Сохранить категории доступа =====
     $('#btn-save-access').on('click', function() {
@@ -1126,6 +1024,21 @@ function renderNodeChildren($container, data) {
                 $('#btn-save-access').prop('disabled', false).html('<span class="glyphicon glyphicon-floppy-disk"></span> <?php echo __('Сохранить категории'); ?>');
             }
         });
+    });
+    
+    // ===== Выбрать все / Снять все =====
+    $('#btn-select-all-access').on('click', function() {
+        $('.access-checkbox').prop('checked', true);
+        isDirty = true;
+        $('#btn-save-access').addClass('btn-warning').removeClass('btn-success');
+        updateAccessCount();
+    });
+    
+    $('#btn-deselect-all-access').on('click', function() {
+        $('.access-checkbox').prop('checked', false);
+        isDirty = true;
+        $('#btn-save-access').addClass('btn-warning').removeClass('btn-success');
+        updateAccessCount();
     });
     
     // ===== Загрузка информации о сотруднике =====
@@ -1192,6 +1105,7 @@ function renderNodeChildren($container, data) {
         
         var html = '<div class="row">' +
             '<div class="col-md-12">' +
+            '<div class="info-item"><span class="label"><?php echo __('ID'); ?>:</span><span class="value"><strong>' + person.ID_PEP + '</strong></span></div>' +
             '<div class="info-item"><span class="label"><?php echo __('ФИО'); ?>:</span><span class="value"><strong>' + fullName + '</strong></span></div>' +
             '<div class="info-item"><span class="label"><?php echo __('Должность'); ?>:</span><span class="value">' + (person.POST || '—') + '</span></div>' +
             '<div class="info-item"><span class="label"><?php echo __('Табельный номер'); ?>:</span><span class="value">' + (person.TABNUM || '—') + '</span></div>' +
@@ -1200,8 +1114,22 @@ function renderNodeChildren($container, data) {
             '<div class="info-item"><span class="label"><?php echo __('Статус'); ?>:</span><span class="value"><span class="label label-' + statusClass + '">' + statusText + '</span></span></div>' +
             '<div class="info-item"><span class="label"><?php echo __('Телефон'); ?>:</span><span class="value">' + (person.PHONEWORK || '—') + '</span></div>' +
             '<div class="info-item"><span class="label"><?php echo __('Мобильный'); ?>:</span><span class="value">' + (person.PHONECELLULAR || '—') + '</span></div>' +
+            '<div class="info-item"><span class="label"><?php echo __('Домашний телефон'); ?>:</span><span class="value">' + (person.PHONEHOME || '—') + '</span></div>' +
             cardsHtml +
+            '<div class="info-item"><span class="label"><?php echo __('Дата рождения'); ?>:</span><span class="value">' + (person.DATEBIRTH || '—') + '</span></div>' +
+            '<div class="info-item"><span class="label"><?php echo __('Место рождения'); ?>:</span><span class="value">' + (person.PLACEBIRTH || '—') + '</span></div>' +
+            '<div class="info-item"><span class="label"><?php echo __('Адрес проживания'); ?>:</span><span class="value">' + (person.PLACELIFE || '—') + '</span></div>' +
+            '<div class="info-item"><span class="label"><?php echo __('Адрес регистрации'); ?>:</span><span class="value">' + (person.PLACEREG || '—') + '</span></div>' +
+            '<div class="info-item"><span class="label"><?php echo __('Паспорт'); ?>:</span><span class="value">' + (person.NUMDOC || '—') + '</span></div>' +
+            '<div class="info-item"><span class="label"><?php echo __('Дата выдачи'); ?>:</span><span class="value">' + (person.DATEDOC || '—') + '</span></div>' +
+            '<div class="info-item"><span class="label"><?php echo __('Кем выдан'); ?>:</span><span class="value">' + (person.PLACEDOC || '—') + '</span></div>' +
             '<div class="info-item"><span class="label"><?php echo __('Примечание'); ?>:</span><span class="value">' + (person.NOTE || '—') + '</span></div>' +
+            '<div class="info-item"><span class="label"><?php echo __('Служебные записи'); ?>:</span><span class="value">' + (person.SYSNOTE || '—') + '</span></div>' +
+            '<div class="info-item" style="border-bottom: none; padding-top: 15px;">' +
+                '<button class="btn btn-primary btn-sm" onclick="openEditPersonDialog(' + person.ID_PEP + ', ' + person.ID_ORG + ')">' +
+                    '<span class="glyphicon glyphicon-pencil"></span> <?php echo __('Редактировать'); ?>' +
+                '</button>' +
+            '</div>' +
             '</div>' +
             '</div>';
         
@@ -1335,7 +1263,7 @@ function renderNodeChildren($container, data) {
         openEditPersonDialog(0, orgId);
     });
     
-    // ===== Поиск организаций (локальный) =====
+    // ===== Поиск организаций =====
     $('#org-search').on('keyup', function() {
         var query = $(this).val().toLowerCase().trim();
         
@@ -1358,10 +1286,10 @@ function renderNodeChildren($container, data) {
                     var $parent = $(this);
                     $parent.show();
                     var $children = $parent.children('.tree-children');
-                    var $icon = $parent.find('.tree-toggle .glyphicon');
+                    var $icon = $parent.find('.tree-toggle span');
                     if ($children.length > 0) {
                         $children.show();
-                        $icon.removeClass('glyphicon-folder-close').addClass('glyphicon-folder-open');
+                        $icon.html('📂');
                         $parent.data('expanded', true);
                     }
                 });
@@ -1369,7 +1297,7 @@ function renderNodeChildren($container, data) {
         });
     });
     
-    // ===== Поиск сотрудников (через AJAX) =====
+    // ===== Поиск сотрудников =====
     $('#person-search').on('keyup', function() {
         var query = $(this).val().toLowerCase().trim();
         
@@ -1393,7 +1321,6 @@ function renderNodeChildren($container, data) {
                 dataType: 'json',
                 success: function(response) {
                     $('#person-search').removeClass('searching');
-                    //console.log('Search response:', response);
                     
                     if (response.success && response.data && response.data.length > 0) {
                         showSearchResults(response.data);
@@ -1431,7 +1358,6 @@ function renderNodeChildren($container, data) {
                 .on('click', function() {
                     var personId = $(this).data('person-id');
                     var orgId = $(this).data('org-id');
-                    //console.log('Clicked on person:', personId, 'org:', orgId);
                     
                     revealAndHighlightPerson(personId, orgId);
                     $('#search-results').hide();
@@ -1445,16 +1371,7 @@ function renderNodeChildren($container, data) {
         $container.show();
     }
     
-    // ===== Очистка результатов поиска =====
-    $('#clear-search-results').on('click', function() {
-        $('#search-results').hide();
-        $('#search-results-list').empty();
-        $('#person-search').val('');
-        $('#card-search').val('');
-        $('.tree-node').show();
-    });
-    
-    // ===== Поиск по идентификатору (карте) =====
+    // ===== Поиск по идентификатору =====
     $('#card-search').on('keyup', function() {
         var query = $(this).val().toLowerCase().trim();
         
@@ -1478,7 +1395,6 @@ function renderNodeChildren($container, data) {
                 dataType: 'json',
                 success: function(response) {
                     $('#card-search').removeClass('searching');
-                    //console.log('Card search response:', response);
                     
                     if (response.success && response.data && response.data.length > 0) {
                         showCardSearchResults(response.data);
@@ -1519,7 +1435,6 @@ function renderNodeChildren($container, data) {
                 .on('click', function() {
                     var personId = $(this).data('person-id');
                     var orgId = $(this).data('org-id');
-                    //console.log('Clicked on person from card search:', personId, 'org:', orgId);
                     
                     revealAndHighlightPerson(personId, orgId);
                     $('#search-results').hide();
@@ -1533,19 +1448,28 @@ function renderNodeChildren($container, data) {
         $container.show();
     }
     
+    // ===== Очистка результатов поиска =====
+    $('#clear-search-results').on('click', function() {
+        $('#search-results').hide();
+        $('#search-results-list').empty();
+        $('#person-search').val('');
+        $('#card-search').val('');
+        $('.tree-node').show();
+    });
+    
     // ===== Развернуть всё =====
     $('#btn-expand-all').on('click', function() {
         $('.tree-node[data-type="org"]').each(function() {
             var $this = $(this);
             var $children = $this.children('.tree-children');
-            var $icon = $this.find('.tree-toggle .glyphicon');
+            var $icon = $this.find('.tree-toggle span');
             
             if (!$this.data('expanded') && $children.length > 0) {
                 if ($children.children().length === 0) {
                     loadNodeContent($this);
                 } else {
                     $children.slideDown();
-                    $icon.removeClass('glyphicon-folder-close').addClass('glyphicon-folder-open');
+                    $icon.html('📂');
                     $this.data('expanded', true);
                 }
             }
@@ -1556,7 +1480,7 @@ function renderNodeChildren($container, data) {
     $('#btn-collapse-all').on('click', function() {
         $('.tree-children').slideUp();
         $('.tree-node[data-type="org"]').data('expanded', false);
-        $('.tree-node[data-type="org"] .tree-toggle .glyphicon').removeClass('glyphicon-folder-open').addClass('glyphicon-folder-close');
+        $('.tree-node[data-type="org"] .tree-toggle span').html('📁');
     });
     
     // ===== Переключение на страницу перемещения =====
@@ -1564,45 +1488,36 @@ function renderNodeChildren($container, data) {
         window.location.href = '<?php echo URL::site('mancard/move'); ?>';
     });
     
-    // ===== Раскрытие дерева к сотруднику и подсветка =====
+    // ===== Раскрытие дерева к сотруднику =====
     function revealAndHighlightPerson(personId, orgId) {
-        //console.log('Reveal and highlight person:', personId, 'in org:', orgId);
-        
         var $orgNode = $('.tree-node[data-org-id="' + orgId + '"]');
         
         if ($orgNode.length === 0) {
-            //console.log('Organization not found in DOM:', orgId);
             alert('Организация не найдена в дереве');
             return;
         }
         
         function expandNode($node) {
             var $children = $node.children('.tree-children');
-            var $icon = $node.find('.tree-toggle .glyphicon');
+            var $icon = $node.find('.tree-toggle span');
             
             if (!$node.data('expanded')) {
                 if ($children.children().length === 0) {
-                    //console.log('Loading content for org:', $node.data('org-id'));
                     loadNodeContent($node);
                 }
                 $children.show();
-                if ($icon.length > 0) {
-                    $icon.removeClass('glyphicon-folder-close').addClass('glyphicon-folder-open');
-                }
+                $icon.html('📂');
                 $node.data('expanded', true);
-                //console.log('Expanded node:', $node.data('org-id'));
             }
             
             $node.parents('.tree-node').each(function() {
                 var $parent = $(this);
                 var $pChildren = $parent.children('.tree-children');
-                var $pIcon = $parent.find('.tree-toggle .glyphicon');
+                var $pIcon = $parent.find('.tree-toggle span');
                 
                 if ($pChildren.length > 0 && !$parent.data('expanded')) {
                     $pChildren.show();
-                    if ($pIcon.length > 0) {
-                        $pIcon.removeClass('glyphicon-folder-close').addClass('glyphicon-folder-open');
-                    }
+                    $pIcon.html('📂');
                     $parent.data('expanded', true);
                 }
             });
@@ -1615,13 +1530,11 @@ function renderNodeChildren($container, data) {
         
         var checkInterval = setInterval(function() {
             attempts++;
-            //console.log('Attempt', attempts, 'to find person:', personId);
             
             var $person = $('.tree-item-person[data-person-id="' + personId + '"]');
             
             if ($person.length > 0) {
                 clearInterval(checkInterval);
-                //console.log('Found person in DOM!');
                 
                 var $node = $person.closest('.tree-node');
                 $node.show();
@@ -1630,10 +1543,10 @@ function renderNodeChildren($container, data) {
                     var $parent = $(this);
                     $parent.show();
                     var $pChildren = $parent.children('.tree-children');
-                    var $pIcon = $parent.find('.tree-toggle .glyphicon');
+                    var $pIcon = $parent.find('.tree-toggle span');
                     if ($pChildren.length > 0 && !$parent.data('expanded')) {
                         $pChildren.show();
-                        $pIcon.removeClass('glyphicon-folder-close').addClass('glyphicon-folder-open');
+                        $pIcon.html('📂');
                         $parent.data('expanded', true);
                     }
                 });
@@ -1662,7 +1575,6 @@ function renderNodeChildren($container, data) {
                 
             } else if (attempts >= maxAttempts) {
                 clearInterval(checkInterval);
-                //console.log('Timeout: Person not found');
                 
                 var orgName = $orgNode.find('.org-name').text();
                 if (confirm('Сотрудник найден в организации "' + orgName + '", но еще не загружен в дерево.\n\nРаскрыть организацию вручную?')) {
@@ -1681,40 +1593,51 @@ function renderNodeChildren($container, data) {
         }, 300);
     }
     
-// ===== Инициализация =====
-//console.log('=== НАЧАЛО ИНИЦИАЛИЗАЦИИ ===');
-
-// 1. Закрываем все папки КРОМЕ корня
-$('.tree-node[data-type="org"] .tree-toggle .glyphicon').each(function() {
-    var $this = $(this);
-    var $node = $this.closest('.tree-node');
-    var orgId = $node.data('org-id');
+    // ===== Инициализация =====
+    // Закрываем все папки КРОМЕ корня
+    $('.tree-node[data-type="org"] .tree-toggle span').each(function() {
+        var $this = $(this);
+        var $node = $this.closest('.tree-node');
+        var orgId = $node.data('org-id');
+        
+        if (orgId != 1) {
+            $this.html('📁');
+        } else {
+            $this.html('📂');
+        }
+    });
     
-    // Если это не корень (ID_ORG != 1) - закрываем папку
-    if (orgId != 1) {
-        $this.removeClass('glyphicon-folder-open').addClass('glyphicon-folder-close');
-    } else {
-        // Корень - открываем
-        $this.removeClass('glyphicon-folder-close').addClass('glyphicon-folder-open');
+    // Скрываем все дочерние элементы КРОМЕ корня
+    $('.tree-children').hide();
+    
+    // Открываем корень
+    $('#file-tree-root .tree-children').show();
+    $('#file-tree-root > .tree-node').data('expanded', true);
+    
+    updateTotalOrgs();
+    
+    if ($('#root-children').children().length === 0) {
+        loadNodeContent($('#file-tree-root > .tree-node'));
     }
+    
+    loadAllAccessNames();
 });
 
-// 2. Скрываем все дочерние элементы КРОМЕ корня
-$('.tree-children').hide();
+// ===== Инициализация Bootstrap Tooltips =====
+$('[data-toggle="tooltip"]').tooltip({
+    placement: 'top',
+    trigger: 'hover',
+    container: 'body'
+});
 
-// 3. Открываем корень
-$('#file-tree-root .tree-children').show();
-$('#file-tree-root > .tree-node').data('expanded', true);
-
-//console.log('=== ИНИЦИАЛИЗАЦИЯ ЗАВЕРШЕНА ===');
-
-updateRootCount();
-updateTotalOrgs();
-
-if ($('#root-children').children().length === 0) {
-    loadNodeContent($('#file-tree-root > .tree-node'));
-}
-
-loadAllAccessNames();
+$(document).on('mouseenter', '[data-toggle="tooltip"]', function() {
+    var $this = $(this);
+    if (!$this.data('bs.tooltip')) {
+        $this.tooltip({
+            placement: 'top',
+            trigger: 'hover',
+            container: 'body'
+        });
+    }
 });
 </script>
