@@ -1,6 +1,6 @@
 <?php defined('SYSPATH') or die('No direct script access.');
 
-defined('MANCARD_VERSION') OR define('MANCARD_VERSION', '1.0.2');
+defined('MANCARD_VERSION') OR define('MANCARD_VERSION', '1.1.1');
 
 Kohana::$config->load('menu')
     ->set('mancard', array(

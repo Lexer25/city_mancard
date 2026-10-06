@@ -1,0 +1,804 @@
+<?php defined('SYSPATH') OR die('No direct access allowed.');
+
+/**
+ * Model_Mancard_Org — операции с организациями.
+ *
+ * Дерево и справочник организаций, создание/переименование/удаление/перемещение,
+ * структура организации (включая сотрудников) и категории доступа организации.
+ *
+ * Сотрудники — Model_Mancard_People.
+ */
+class Model_Mancard_Org extends Model {
+
+    /**
+     * Преобразование строки БД (windows-1251) в UTF-8
+     */
+    protected function _utf($value)
+    {
+        return iconv('windows-1251', 'UTF-8', $value);
+    }
+
+    /**
+     * Преобразование строки UTF-8 в кодировку БД (windows-1251)
+     */
+    protected function _win($value)
+    {
+        return iconv('UTF-8', 'windows-1251', $value);
+    }
+
+    /**
+     * Модель сотрудников — для сотрудников внутри структуры организации
+     *
+     * @return Model_Mancard_People
+     */
+    protected function _people()
+    {
+        return Model::factory('Mancard_People');
+    }
+
+    /**
+     * Получить новый ID организации из генератора GEN_ORG_ID
+     *
+     * @return int
+     */
+    private function getNewIdOrg()
+    {
+        $sql = 'SELECT GEN_ID(GEN_ORG_ID, 1) FROM RDB$DATABASE';
+
+        $id = DB::query(Database::SELECT, $sql)
+            ->execute(Database::instance('fb'))
+            ->get('GEN_ID');
+
+        return (int)$id;
+    }
+
+    /**
+     * Получить дерево организаций
+     */
+    public function getOrganizationTree()
+    {
+        $sql = 'SELECT 
+                    o.ID_ORG, 
+                    o.NAME, 
+                    o.ID_PARENT, 
+                    o.FLAG,
+                    (SELECT COUNT(*) FROM PEOPLE WHERE ID_ORG = o.ID_ORG AND "ACTIVE" = 1) AS PEOPLE_COUNT,
+                    (SELECT COUNT(*) FROM ORGANIZATION WHERE ID_PARENT = o.ID_ORG AND ID_DB = 1) AS CHILDREN_COUNT
+                FROM ORGANIZATION o
+                WHERE o.ID_DB = 1
+                AND o.ID_ORG != 0  -- <-- ИСКЛЮЧАЕМ ID_ORG = 0
+                ORDER BY o.ID_PARENT, o.NAME';
+
+        $query = DB::query(Database::SELECT, $this->_win($sql))
+            ->execute(Database::instance('fb'))
+            ->as_array();
+
+        $result = array();
+        foreach ($query as $row) {
+            $result[] = array(
+                'ID_ORG' => $row['ID_ORG'],
+                'NAME' => $this->_utf($row['NAME']),
+                'ID_PARENT' => $row['ID_PARENT'],
+                'FLAG' => $row['FLAG'],
+                'PEOPLE_COUNT' => (int)$row['PEOPLE_COUNT'],
+                'CHILDREN_COUNT' => (int)$row['CHILDREN_COUNT']
+            );
+        }
+
+        return $result;
+    }
+
+    /**
+     * Получить все организации для выпадающего списка (плоский список)
+     */
+    public function getAllOrganizations()
+    {
+        $sql = 'SELECT ID_ORG, NAME, ID_PARENT 
+                FROM ORGANIZATION 
+                WHERE ID_DB = 1 
+                AND ID_ORG != 0  -- <-- ИСКЛЮЧАЕМ ID_ORG = 0
+                ORDER BY ID_PARENT, NAME';
+
+        $query = DB::query(Database::SELECT, $this->_win($sql))
+            ->execute(Database::instance('fb'))
+            ->as_array();
+
+        $result = array();
+        foreach ($query as $row) {
+            $result[] = array(
+                'ID_ORG' => $row['ID_ORG'],
+                'NAME' => $this->_utf($row['NAME']),
+                'ID_PARENT' => $row['ID_PARENT'],
+            );
+        }
+
+        return $result;
+    }
+
+    /**
+     * Получить корневые организации
+     */
+    public function getRootOrganizations()
+    {
+        $sql = 'SELECT ID_ORG, NAME, ID_PARENT, FLAG 
+                FROM ORGANIZATION 
+                WHERE ID_PARENT = 1 AND ID_DB = 1
+                ORDER BY NAME';
+
+        $query = DB::query(Database::SELECT, $this->_win($sql))
+            ->execute(Database::instance('fb'))
+            ->as_array();
+
+        $result = array();
+        foreach ($query as $row) {
+            $result[] = array(
+                'ID_ORG' => $row['ID_ORG'],
+                'NAME' => $this->_utf($row['NAME']),
+                'ID_PARENT' => $row['ID_PARENT'],
+                'FLAG' => $row['FLAG'],
+            );
+        }
+
+        return $result;
+    }
+
+    /**
+     * Получить подчиненные организации (для дерева)
+     */
+    public function getChildOrganizations($parent_id)
+    {
+        $parent_id = (int)$parent_id;
+
+        $sql = 'SELECT 
+                    o.ID_ORG, 
+                    o.NAME, 
+                    o.ID_PARENT, 
+                    o.FLAG,
+                    (SELECT COUNT(*) FROM PEOPLE WHERE ID_ORG = o.ID_ORG AND "ACTIVE" = 1) AS PEOPLE_COUNT,
+                    (SELECT COUNT(*) FROM ORGANIZATION WHERE ID_PARENT = o.ID_ORG AND ID_DB = 1) AS CHILDREN_COUNT
+                FROM ORGANIZATION o
+                WHERE o.ID_PARENT = ' . $parent_id . ' 
+                AND o.ID_DB = 1
+                AND o.ID_ORG != 0          -- <-- ИСКЛЮЧАЕМ ID_ORG = 0
+                AND o.ID_ORG != ' . $parent_id . '  -- <-- ИСКЛЮЧАЕМ САМУ СЕБЯ
+                ORDER BY o.NAME';
+
+        $query = DB::query(Database::SELECT, $this->_win($sql))
+            ->execute(Database::instance('fb'))
+            ->as_array();
+
+        $result = array();
+        foreach ($query as $row) {
+            $result[] = array(
+                'ID_ORG' => $row['ID_ORG'],
+                'NAME' => $this->_utf($row['NAME']),
+                'ID_PARENT' => $row['ID_PARENT'],
+                'FLAG' => $row['FLAG'],
+                'PEOPLE_COUNT' => (int)$row['PEOPLE_COUNT'],
+                'CHILDREN_COUNT' => (int)$row['CHILDREN_COUNT'],
+                'CHILDREN' => array()
+            );
+        }
+
+        return $result;
+    }
+
+    /**
+     * Получить организации с уровнем вложенности
+     */
+    public function getOrganizationsWithLevel()
+    {
+        $sql = 'WITH RECURSIVE org_tree AS (
+                    SELECT 
+                        ID_ORG, 
+                        NAME, 
+                        ID_PARENT, 
+                        0 AS LEVEL
+                    FROM ORGANIZATION 
+                    WHERE ID_PARENT = 1 AND ID_DB = 1
+                    
+                    UNION ALL
+                    
+                    SELECT 
+                        o.ID_ORG, 
+                        o.NAME, 
+                        o.ID_PARENT, 
+                        ot.LEVEL + 1
+                    FROM ORGANIZATION o
+                    JOIN org_tree ot ON ot.ID_ORG = o.ID_PARENT
+                    WHERE o.ID_DB = 1
+                )
+                SELECT ID_ORG, NAME, ID_PARENT, LEVEL
+                FROM org_tree
+                ORDER BY LEVEL, NAME';
+
+        $query = DB::query(Database::SELECT, $this->_win($sql))
+            ->execute(Database::instance('fb'))
+            ->as_array();
+
+        $result = array();
+        foreach ($query as $row) {
+            $result[] = array(
+                'ID_ORG' => $row['ID_ORG'],
+                'NAME' => $this->_utf($row['NAME']),
+                'ID_PARENT' => $row['ID_PARENT'],
+                'LEVEL' => $row['LEVEL'],
+            );
+        }
+
+        return $result;
+    }
+
+    /**
+     * Добавить организацию
+     */
+    public function addOrganization($name, $parent_id = 1)
+    {
+        $name_win = $this->_win($name);
+        $parent_id = (int)$parent_id;
+
+        // Новый ID берём из генератора GEN_ORG_ID
+        $new_id = $this->getNewIdOrg();
+
+        $sql = 'INSERT INTO ORGANIZATION (
+                    ID_ORG, ID_DB, NAME, ID_PARENT, FLAG, ID_DEF_ACCESSNAME, DIVCODE, TIME_STAMP
+                ) VALUES (
+                    ' . $new_id . ', 1, \'' . $name_win . '\', ' . $parent_id . ', 0, NULL, \'' . $new_id . '\', CURRENT_TIMESTAMP
+                )';
+
+        DB::query(Database::INSERT, $sql)
+            ->execute(Database::instance('fb'));
+
+        return $new_id;
+    }
+
+    /**
+     * Переименовать организацию
+     */
+    public function renameOrganization($id_org, $new_name)
+    {
+        $id_org = (int)$id_org;
+        $new_name_win = $this->_win($new_name);
+
+        $sql = 'UPDATE ORGANIZATION 
+                SET NAME = \'' . $new_name_win . '\', TIME_STAMP = CURRENT_TIMESTAMP 
+                WHERE ID_ORG = ' . $id_org;
+
+        DB::query(Database::UPDATE, $sql)
+            ->execute(Database::instance('fb'));
+    }
+
+    /**
+     * Удалить организацию (и всех сотрудников в ней)
+     */
+    public function deleteOrganization($id_org)
+    {
+        $id_org = (int)$id_org;
+
+        // Проверяем, есть ли подчиненные организации
+        $sql = 'SELECT COUNT(*) AS CNT FROM ORGANIZATION WHERE ID_PARENT = ' . $id_org;
+        $query = DB::query(Database::SELECT, $sql)
+            ->execute(Database::instance('fb'));
+
+        if ((int)$query->get('CNT') > 0) {
+            throw new Exception('Нельзя удалить организацию, у которой есть подчиненные');
+        }
+
+        // Удаляем сотрудников
+        $sql = 'DELETE FROM PEOPLE WHERE ID_ORG = ' . $id_org;
+        DB::query(Database::DELETE, $sql)
+            ->execute(Database::instance('fb'));
+
+        // Удаляем организацию
+        $sql = 'DELETE FROM ORGANIZATION WHERE ID_ORG = ' . $id_org;
+        DB::query(Database::DELETE, $sql)
+            ->execute(Database::instance('fb'));
+    }
+
+    /**
+     * Переместить организацию
+     */
+    public function moveOrganization($id_org, $new_parent_id)
+    {
+        $id_org = (int)$id_org;
+        $new_parent_id = (int)$new_parent_id;
+
+        // 1. Нельзя перемещать корневую организацию (ее можно только переименовать)
+        if ($id_org == 1) {
+            throw new Exception('Нельзя перемещать корневую организацию');
+        }
+
+        // 2. Проверяем, не пытаемся ли переместить в саму себя
+        if ($id_org == $new_parent_id) {
+            throw new Exception('Нельзя переместить организацию в саму себя');
+        }
+
+        // 3. Проверяем, существует ли целевая организация
+        // (корень 1 всегда существует, но проверка не помешает)
+        $sql = 'SELECT COUNT(*) AS CNT FROM ORGANIZATION WHERE ID_ORG = ' . $new_parent_id;
+        $query = DB::query(Database::SELECT, $sql)
+            ->execute(Database::instance('fb'))
+            ->as_array();
+        if ((int)$query[0]['CNT'] == 0) {
+            throw new Exception('Целевая организация не найдена');
+        }
+
+        // 4. Проверяем цикличность (только если перемещаем НЕ в корень)
+        if ($new_parent_id != 1) {
+            $sql = 'SELECT ID_ORG FROM ORGANIZATION_GETPARENT(1, ' . $new_parent_id . ')';
+            $query = DB::query(Database::SELECT, $sql)
+                ->execute(Database::instance('fb'))
+                ->as_array();
+
+            foreach ($query as $row) {
+                if ((int)$row['ID_ORG'] === $id_org) {
+                    throw new Exception('Нельзя переместить организацию в подчиненную');
+                }
+            }
+        }
+
+        // 5. Выполняем перемещение
+        $sql = 'UPDATE ORGANIZATION 
+                SET ID_PARENT = ' . $new_parent_id . ', TIME_STAMP = CURRENT_TIMESTAMP 
+                WHERE ID_ORG = ' . $id_org;
+        DB::query(Database::UPDATE, $sql)
+            ->execute(Database::instance('fb'));
+    }
+
+    /**
+     * Проверить, есть ли у организации дети или сотрудники
+     */
+    public function hasChildrenOrPeople($org_id)
+    {
+        $org_id = (int)$org_id;
+
+        // Проверяем сотрудников
+        $sql = 'SELECT COUNT(*) AS CNT FROM PEOPLE WHERE ID_ORG = ' . $org_id . ' AND ID_ORG NOT IN (2, 3)';
+        $query = DB::query(Database::SELECT, $sql)
+            ->execute(Database::instance('fb'));
+        $people_count = (int)$query->get('CNT');
+
+        if ($people_count > 0) {
+            return true;
+        }
+
+        // Проверяем подорганизации
+        $sql = 'SELECT COUNT(*) AS CNT FROM ORGANIZATION WHERE ID_PARENT = ' . $org_id . ' AND ID_DB = 1';
+        $query = DB::query(Database::SELECT, $sql)
+            ->execute(Database::instance('fb'));
+        $org_count = (int)$query->get('CNT');
+
+        return $org_count > 0;
+    }
+
+    /**
+     * Получить структуру организации с сотрудниками (для файлового менеджера)
+     */
+    public function getOrgStructure($org_id = 1)
+    {
+        $org_id = (int)$org_id;
+
+        // Получаем информацию об организации
+        $sql = 'SELECT ID_ORG, NAME, ID_PARENT, FLAG 
+                FROM ORGANIZATION 
+                WHERE ID_ORG = ' . $org_id;
+
+        $query = DB::query(Database::SELECT, $sql)
+            ->execute(Database::instance('fb'))
+            ->as_array();
+
+        if (empty($query)) {
+            return null;
+        }
+
+        $org = $query[0];
+        $result = array(
+            'ID_ORG' => $org['ID_ORG'],
+            'NAME' => $this->_utf($org['NAME']),
+            'ID_PARENT' => $org['ID_PARENT'],
+            'FLAG' => $org['FLAG'],
+            'CHILDREN' => array(),
+            'PEOPLE' => array()
+        );
+
+        // Получаем сотрудников организации
+        $sql = 'SELECT 
+                    ID_PEP,
+                    SURNAME,
+                    NAME,
+                    PATRONYMIC,
+                    POST,
+                    PHONEWORK,
+                    "ACTIVE"
+                FROM PEOPLE 
+                WHERE ID_ORG = ' . $org_id . '
+                AND ID_ORG NOT IN (2, 3)
+                ORDER BY SURNAME, NAME';
+
+        $people_query = DB::query(Database::SELECT, $sql)
+            ->execute(Database::instance('fb'))
+            ->as_array();
+
+        foreach ($people_query as $person) {
+            $result['PEOPLE'][] = array(
+                'ID_PEP' => $person['ID_PEP'],
+                'SURNAME' => $this->_utf($person['SURNAME']),
+                'NAME' => $this->_utf($person['NAME']),
+                'PATRONYMIC' => $this->_utf($person['PATRONYMIC']),
+                'POST' => $this->_utf($person['POST']),
+                'PHONEWORK' => $person['PHONEWORK'],
+                'ACTIVE' => $person['ACTIVE'],
+            );
+        }
+
+        // Получаем подорганизации
+        $sql = 'SELECT ID_ORG 
+                FROM ORGANIZATION 
+                WHERE ID_PARENT = ' . $org_id . '
+                AND ID_DB = 1
+                ORDER BY NAME';
+
+        $children_query = DB::query(Database::SELECT, $sql)
+            ->execute(Database::instance('fb'))
+            ->as_array();
+
+        foreach ($children_query as $child) {
+            $child_structure = $this->getOrgStructure($child['ID_ORG']);
+            if ($child_structure) {
+                $result['CHILDREN'][] = $child_structure;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Получить структуру организации для AJAX (только один уровень)
+     */
+    public function getOrgStructureLevel($org_id = 1)
+    {
+        $org_id = (int)$org_id;
+
+        $result = array(
+            'ID_ORG' => $org_id,
+            'CHILDREN' => array(),
+            'PEOPLE' => array()
+        );
+
+        // Получаем название организации
+        $sql = 'SELECT NAME FROM ORGANIZATION WHERE ID_ORG = ' . $org_id;
+        $query = DB::query(Database::SELECT, $sql)
+            ->execute(Database::instance('fb'))
+            ->as_array();
+
+        if (!empty($query)) {
+            $result['NAME'] = $this->_utf($query[0]['NAME']);
+        }
+
+        // Получаем сотрудников
+        $sql = 'SELECT 
+                    ID_PEP,
+                    SURNAME,
+                    NAME,
+                    PATRONYMIC,
+                    POST,
+                    PHONEWORK,
+                    "ACTIVE"
+                FROM PEOPLE 
+                WHERE ID_ORG = ' . $org_id . '
+                AND ID_ORG NOT IN (2, 3)
+                ORDER BY SURNAME, NAME';
+
+        $people_query = DB::query(Database::SELECT, $sql)
+            ->execute(Database::instance('fb'))
+            ->as_array();
+
+        foreach ($people_query as $person) {
+            $result['PEOPLE'][] = array(
+                'ID_PEP' => $person['ID_PEP'],
+                'SURNAME' => $this->_utf($person['SURNAME']),
+                'NAME' => $this->_utf($person['NAME']),
+                'PATRONYMIC' => $this->_utf($person['PATRONYMIC']),
+                'POST' => $this->_utf($person['POST']),
+                'PHONEWORK' => $person['PHONEWORK'],
+                'ACTIVE' => $person['ACTIVE'],
+                'TYPE' => 'person'
+            );
+        }
+
+        // Получаем подорганизации
+        $sql = 'SELECT ID_ORG, NAME, FLAG 
+                FROM ORGANIZATION 
+                WHERE ID_PARENT = ' . $org_id . '
+                AND ID_DB = 1
+                ORDER BY NAME';
+
+        $children_query = DB::query(Database::SELECT, $this->_win($sql))
+            ->execute(Database::instance('fb'))
+            ->as_array();
+
+        foreach ($children_query as $child) {
+            // Проверяем, есть ли у организации дети или сотрудники
+            $has_children = $this->hasChildrenOrPeople($child['ID_ORG']);
+
+            $result['CHILDREN'][] = array(
+                'ID_ORG' => $child['ID_ORG'],
+                'NAME' => $this->_utf($child['NAME']),
+                'FLAG' => $child['FLAG'],
+                'TYPE' => 'org',
+                'HAS_CHILDREN' => $has_children,
+                'EXPANDED' => false
+            );
+        }
+
+        return $result;
+    }
+
+    /**
+     * Получить структуру организации с сотрудниками и их картами
+     */
+    public function getOrgStructureWithCards($org_id = 1)
+    {
+        $org_id = (int)$org_id;
+
+        // Получаем информацию об организации
+        $sql = 'SELECT ID_ORG, NAME, ID_PARENT, FLAG 
+                FROM ORGANIZATION 
+                WHERE ID_ORG = ' . $org_id;
+
+        $query = DB::query(Database::SELECT, $sql)
+            ->execute(Database::instance('fb'))
+            ->as_array();
+
+        if (empty($query)) {
+            return null;
+        }
+
+        $org = $query[0];
+        $result = array(
+            'ID_ORG' => $org['ID_ORG'],
+            'NAME' => $this->_utf($org['NAME']),
+            'ID_PARENT' => $org['ID_PARENT'],
+            'FLAG' => $org['FLAG'],
+            'CHILDREN' => array(),
+            'PEOPLE' => array()
+        );
+
+        // Получаем сотрудников с картами
+        $sql = 'SELECT 
+                    p.ID_PEP,
+                    p.SURNAME,
+                    p.NAME,
+                    p.PATRONYMIC,
+                    p.POST,
+                    p.PHONEWORK,
+                    p."ACTIVE"
+                FROM PEOPLE p
+                WHERE p.ID_ORG = ' . $org_id . '
+                AND p.ID_ORG NOT IN (2, 3)
+                ORDER BY p.SURNAME, p.NAME';
+
+        $people_query = DB::query(Database::SELECT, $sql)
+            ->execute(Database::instance('fb'))
+            ->as_array();
+
+        $people = $this->_people();
+
+        foreach ($people_query as $person) {
+            $person_data = array(
+                'ID_PEP' => $person['ID_PEP'],
+                'SURNAME' => $this->_utf($person['SURNAME']),
+                'NAME' => $this->_utf($person['NAME']),
+                'PATRONYMIC' => $this->_utf($person['PATRONYMIC']),
+                'POST' => $this->_utf($person['POST']),
+                'PHONEWORK' => $person['PHONEWORK'],
+                'ACTIVE' => $person['ACTIVE'],
+                'CARDS' => $people->getPersonCards($person['ID_PEP'])
+            );
+            $result['PEOPLE'][] = $person_data;
+        }
+
+        // Получаем подорганизации
+        $sql = 'SELECT ID_ORG 
+                FROM ORGANIZATION 
+                WHERE ID_PARENT = ' . $org_id . '
+                AND ID_DB = 1
+                ORDER BY NAME';
+
+        $children_query = DB::query(Database::SELECT, $sql)
+            ->execute(Database::instance('fb'))
+            ->as_array();
+
+        foreach ($children_query as $child) {
+            $child_structure = $this->getOrgStructureWithCards($child['ID_ORG']);
+            if ($child_structure) {
+                $result['CHILDREN'][] = $child_structure;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Получить структуру организации для AJAX (один уровень) с картами
+     */
+    public function getOrgStructureLevelWithCards($org_id = 1)
+    {
+        $org_id = (int)$org_id;
+
+        $result = array(
+            'ID_ORG' => $org_id,
+            'CHILDREN' => array(),
+            'PEOPLE' => array()
+        );
+
+        try {
+            // Получаем название организации
+            $sql = 'SELECT NAME FROM ORGANIZATION WHERE ID_ORG = ' . $org_id;
+            $query = DB::query(Database::SELECT, $sql)
+                ->execute(Database::instance('fb'))
+                ->as_array();
+
+            if (!empty($query)) {
+                $result['NAME'] = $this->_utf($query[0]['NAME']);
+            }
+
+            // ===== ПОЛУЧАЕМ СОТРУДНИКОВ =====
+            $sql = 'SELECT 
+                        p.ID_PEP,
+                        p.SURNAME,
+                        p.NAME,
+                        p.PATRONYMIC,
+                        p.POST,
+                        p.PHONEWORK,
+                        p."ACTIVE",
+                        p.ID_ORG
+                    FROM PEOPLE p
+                    WHERE p.ID_ORG = ' . $org_id . '
+                    AND p.ID_ORG NOT IN (2, 3)
+                    ORDER BY p.SURNAME, p.NAME';
+
+            $people_query = DB::query(Database::SELECT, $sql)
+                ->execute(Database::instance('fb'))
+                ->as_array();
+
+            $people = $this->_people();
+
+            // Добавляем сотрудников в результат
+            foreach ($people_query as $person) {
+                $person_data = array(
+                    'ID_PEP' => $person['ID_PEP'],
+                    'ID_ORG' => $person['ID_ORG'],
+                    'SURNAME' => $this->_utf($person['SURNAME']),
+                    'NAME' => $this->_utf($person['NAME']),
+                    'PATRONYMIC' => $this->_utf($person['PATRONYMIC']),
+                    'POST' => $this->_utf($person['POST']),
+                    'PHONEWORK' => $person['PHONEWORK'],
+                    'ACTIVE' => $person['ACTIVE'],
+                    'CARDS' => $people->getPersonCards($person['ID_PEP']),
+                    'TYPE' => 'person'
+                );
+                $result['PEOPLE'][] = $person_data;
+            }
+
+            // ===== ПОЛУЧАЕМ ПОДОРГАНИЗАЦИИ =====
+            $sql = 'SELECT 
+                        o.ID_ORG, 
+                        o.NAME, 
+                        o.FLAG,
+                        (SELECT COUNT(*) FROM PEOPLE WHERE ID_ORG = o.ID_ORG AND "ACTIVE" = 1) AS PEOPLE_COUNT,
+                        (SELECT COUNT(*) FROM ORGANIZATION WHERE ID_PARENT = o.ID_ORG AND ID_DB = 1 AND ID_ORG != 0) AS CHILDREN_COUNT
+                    FROM ORGANIZATION o
+                    WHERE o.ID_PARENT = ' . $org_id . '
+                    AND o.ID_DB = 1
+                    AND o.ID_ORG != 0
+                    AND o.ID_ORG != ' . $org_id . '
+                    ORDER BY o.NAME';
+
+            $children_query = DB::query(Database::SELECT, $this->_win($sql))
+                ->execute(Database::instance('fb'))
+                ->as_array();
+
+            foreach ($children_query as $child) {
+                $peopleCount = (int)$child['PEOPLE_COUNT'];
+                $childrenCount = (int)$child['CHILDREN_COUNT'];
+
+                $result['CHILDREN'][] = array(
+                    'ID_ORG' => $child['ID_ORG'],
+                    'NAME' => $this->_utf($child['NAME']),
+                    'FLAG' => $child['FLAG'],
+                    'TYPE' => 'org',
+                    'HAS_CHILDREN' => ($childrenCount > 0),
+                    'EXPANDED' => false,
+                    'PEOPLE_COUNT' => $peopleCount,
+                    'CHILDREN_COUNT' => $childrenCount
+                );
+            }
+
+        } catch (Exception $e) {
+            Kohana::$log->add(Log::ERROR, 'Error in getOrgStructureLevelWithCards: ' . $e->getMessage());
+            throw $e;
+        }
+
+        Kohana::$log->add(Log::INFO, '1069 ' . Debug::vars($result));
+
+        return $result;
+    }
+
+    /**
+     * Получить все категории доступа
+     */
+    public function getAllAccessNames()
+    {
+        $sql = 'SELECT ID_ACCESSNAME, NAME, TIME_STAMP 
+                FROM ACCESSNAME 
+                WHERE ID_DB = 1
+                ORDER BY NAME';
+
+        $query = DB::query(Database::SELECT, $this->_win($sql))
+            ->execute(Database::instance('fb'))
+            ->as_array();
+
+        $result = array();
+        foreach ($query as $row) {
+            $result[] = array(
+                'ID_ACCESSNAME' => $row['ID_ACCESSNAME'],
+                'NAME' => $this->_utf($row['NAME']),
+                'TIME_STAMP' => $row['TIME_STAMP'],
+            );
+        }
+
+        return $result;
+    }
+
+    /**
+     * Получить категории доступа организации
+     */
+    public function getOrgAccessNames($id_org)
+    {
+        $id_org = (int)$id_org;
+
+        $sql = 'SELECT ID_ACCESSNAME 
+                FROM SS_ACCESSORG 
+                WHERE ID_ORG = ' . $id_org . '
+                AND ID_DB = 1';
+
+        $query = DB::query(Database::SELECT, $sql)
+            ->execute(Database::instance('fb'))
+            ->as_array();
+
+        $result = array();
+        foreach ($query as $row) {
+            $result[] = $row['ID_ACCESSNAME'];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Обновить категории доступа для организации
+     */
+    public function updateOrgAccessNames($id_org, $access_ids)
+    {
+        $id_org = (int)$id_org;
+
+        // Удаляем старые
+        $sql = 'DELETE FROM SS_ACCESSORG WHERE ID_ORG = ' . $id_org;
+        DB::query(Database::DELETE, $sql)
+            ->execute(Database::instance('fb'));
+
+        // Добавляем новые
+        if (!empty($access_ids)) {
+            $values = array();
+            foreach ($access_ids as $access_id) {
+                $access_id = (int)$access_id;
+                $values[] = '(GEN_ID(GEN_SS_ACCESSORG, 1), 1, ' . $id_org . ', ' . $access_id . ')';
+            }
+
+            $sql = 'INSERT INTO SS_ACCESSORG (ID_ACCESSORG, ID_DB, ID_ORG, ID_ACCESSNAME) VALUES ' . implode(',', $values);
+            DB::query(Database::INSERT, $sql)
+                ->execute(Database::instance('fb'));
+        }
+    }
+
+}

@@ -9,6 +9,26 @@ class Controller_Mancard extends Controller_Template {
         $_SESSION['menu_active'] = 'mancard';
         $this->set_full_width(true);
     }
+
+    /**
+     * Модель организаций
+     *
+     * @return Model_Mancard_Org
+     */
+    protected function _org()
+    {
+        return Model::factory('Mancard_Org');
+    }
+
+    /**
+     * Модель сотрудников
+     *
+     * @return Model_Mancard_People
+     */
+    protected function _people()
+    {
+        return Model::factory('Mancard_People');
+    }
     
 /**
  * Главная страница - дерево организаций + категории доступа
@@ -19,7 +39,7 @@ public function action_index()
     $this->set_full_width(true);
     
     // Получаем корневую организацию с дочерними элементами
-    $org_tree = Model::factory('Mancard')->getOrganizationTree();
+    $org_tree = $this->_org()->getOrganizationTree();
     
     // Находим корень
     $rootOrg = null;
@@ -27,10 +47,10 @@ public function action_index()
         if ($org['ID_ORG'] == 1) {
             $rootOrg = $org;
             // Загружаем дочерние организации корня (только первый уровень)
-            $rootOrg['CHILDREN'] = Model::factory('Mancard')->getChildOrganizations(1);
+            $rootOrg['CHILDREN'] = $this->_org()->getChildOrganizations(1);
             $rootOrg['CHILDREN_COUNT'] = count($rootOrg['CHILDREN']);
             // Загружаем сотрудников корня
-            $rootOrg['PEOPLE'] = Model::factory('Mancard')->getPeopleByOrganization(1);
+            $rootOrg['PEOPLE'] = $this->_people()->getPeopleByOrganization(1);
             $rootOrg['PEOPLE_COUNT'] = count($rootOrg['PEOPLE']);
             break;
         }
@@ -65,7 +85,7 @@ public function action_index()
         $this->auto_render = false;
         $org_id = (int) $this->request->param('id', 1);
         
-        $people = Model::factory('Mancard')->getPeopleByOrganization($org_id);
+        $people = $this->_people()->getPeopleByOrganization($org_id);
         
         $this->response->headers('Content-Type', 'application/json');
         $this->response->body(json_encode(array(
@@ -94,7 +114,7 @@ public function action_index()
         }
         
         try {
-            $id = Model::factory('Mancard')->addOrganization($name, $parent_id);
+            $id = $this->_org()->addOrganization($name, $parent_id);
             $this->response->body(json_encode(array(
                 'success' => true,
                 'message' => 'Организация добавлена',
@@ -126,7 +146,7 @@ public function action_index()
         }
         
         try {
-            Model::factory('Mancard')->deleteOrganization($org_id);
+            $this->_org()->deleteOrganization($org_id);
             $this->response->body(json_encode(array(
                 'success' => true,
                 'message' => 'Организация удалена'
@@ -167,7 +187,7 @@ public function action_index()
         }
         
         try {
-            Model::factory('Mancard')->renameOrganization($org_id, $name);
+            $this->_org()->renameOrganization($org_id, $name);
             $this->response->body(json_encode(array(
                 'success' => true,
                 'message' => 'Название обновлено'
@@ -200,7 +220,7 @@ public function action_index()
         }
         
         try {
-            Model::factory('Mancard')->moveOrganization($org_id, $new_parent_id);
+            $this->_org()->moveOrganization($org_id, $new_parent_id);
             $this->response->body(json_encode(array(
                 'success' => true,
                 'message' => 'Организация перемещена'
@@ -253,7 +273,7 @@ public function action_index()
         }
         
         try {
-            $id = Model::factory('Mancard')->addPerson($data);
+            $id = $this->_people()->addPerson($data);
             $this->response->body(json_encode(array(
                 'success' => true,
                 'message' => 'Сотрудник добавлен',
@@ -317,7 +337,7 @@ public function action_index()
         }
         
         try {
-            Model::factory('Mancard')->updatePerson($id_pep, $data);
+            $this->_people()->updatePerson($id_pep, $data);
             $this->response->body(json_encode(array(
                 'success' => true,
                 'message' => 'Данные обновлены'
@@ -347,7 +367,7 @@ public function action_index()
         }
         
         try {
-            Model::factory('Mancard')->deletePerson($id_pep);
+            $this->_people()->deletePerson($id_pep);
             $this->response->body(json_encode(array(
                 'success' => true,
                 'message' => 'Сотрудник удален'
@@ -399,7 +419,7 @@ public function action_index()
         }
         
         try {
-            $count = Model::factory('Mancard')->movePeople($person_ids, $target_org_id);
+            $count = $this->_people()->movePeople($person_ids, $target_org_id);
             $this->response->body(json_encode(array(
                 'success' => true,
                 'message' => 'Перемещено ' . $count . ' сотрудников'
@@ -428,7 +448,7 @@ public function action_index()
             return;
         }
         
-        $person = Model::factory('Mancard')->getPerson($id_pep);
+        $person = $this->_people()->getPerson($id_pep);
         
         if (empty($person)) {
             $this->response->body(json_encode(array(
@@ -452,7 +472,7 @@ public function action_index()
     {
         $this->auto_render = false;
         
-        $orgs = Model::factory('Mancard')->getAllOrganizations();
+        $orgs = $this->_org()->getAllOrganizations();
         
         $this->response->headers('Content-Type', 'application/json');
         $this->response->body(json_encode(array(
@@ -469,16 +489,16 @@ public function action_move()
     $_SESSION['menu_active'] = 'mancard';
     
     // Получаем все организации
-    $org_tree = Model::factory('Mancard')->getOrganizationTree();
+    $org_tree = $this->_org()->getOrganizationTree();
     
     // Находим корень
     $rootOrg = null;
     foreach ($org_tree as $org) {
         if ($org['ID_ORG'] == 1) {
             $rootOrg = $org;
-            $rootOrg['CHILDREN'] = Model::factory('Mancard')->getChildOrganizations(1);
+            $rootOrg['CHILDREN'] = $this->_org()->getChildOrganizations(1);
             $rootOrg['CHILDREN_COUNT'] = count($rootOrg['CHILDREN']);
-            $rootOrg['PEOPLE'] = Model::factory('Mancard')->getPeopleByOrganization(1);
+            $rootOrg['PEOPLE'] = $this->_people()->getPeopleByOrganization(1);
             $rootOrg['PEOPLE_COUNT'] = count($rootOrg['PEOPLE']);
             break;
         }
@@ -529,7 +549,7 @@ private function buildTreeFromFlat($flat, $parentId)
     {
         $this->auto_render = false;
         
-        $org_tree = Model::factory('Mancard')->getOrganizationTree();
+        $org_tree = $this->_org()->getOrganizationTree();
         
         $this->response->headers('Content-Type', 'application/json');
         $this->response->body(json_encode(array(
@@ -554,7 +574,7 @@ private function buildTreeFromFlat($flat, $parentId)
             return;
         }
         
-        $people = Model::factory('Mancard')->getPeopleByOrganization($org_id);
+        $people = $this->_people()->getPeopleByOrganization($org_id);
         
         $this->response->headers('Content-Type', 'application/json');
         $this->response->body(json_encode(array(
@@ -604,7 +624,7 @@ Kohana::$log->add(Log::INFO, '541 ' . Debug::vars($post));
                 $move_people = array_filter($move_people);
                 
                 if (!empty($move_people)) {
-                    $count = Model::factory('Mancard')->movePeople($move_people, $target_org_id);
+                    $count = $this->_people()->movePeople($move_people, $target_org_id);
                     $result['people_moved'] = $count;
                 }
             }
@@ -619,7 +639,7 @@ Kohana::$log->add(Log::INFO, '541 ' . Debug::vars($post));
                         continue;
                     }
                     try {
-                        Model::factory('Mancard')->moveOrganization($org_id, $target_org_id);
+                        $this->_org()->moveOrganization($org_id, $target_org_id);
                         $result['orgs_moved']++;
                     } catch (Exception $e) {
                         $result['errors'][] = $e->getMessage() . ' (ID: ' . $org_id . ')';
@@ -649,7 +669,7 @@ Kohana::$log->add(Log::INFO, '541 ' . Debug::vars($post));
         $this->auto_render = false;
         $org_id = (int) $this->request->param('id', 1);
         
-        $structure = Model::factory('Mancard')->getOrgStructureLevel($org_id);
+        $structure = $this->_org()->getOrgStructureLevel($org_id);
         
         $this->response->headers('Content-Type', 'application/json');
         $this->response->body(json_encode(array(
@@ -667,7 +687,7 @@ public function action_get_org_structure_cards()
     $org_id = (int) $this->request->param('id', 1);
     
     try {
-        $structure = Model::factory('Mancard')->getOrgStructureLevelWithCards($org_id);
+        $structure = $this->_org()->getOrgStructureLevelWithCards($org_id);
         
         $this->response->headers('Content-Type', 'application/json');
         $this->response->body(json_encode(array(
@@ -704,7 +724,7 @@ public function action_get_org_structure_cards()
             return;
         }
         
-        $cards = Model::factory('Mancard')->getPersonCards($id_pep);
+        $cards = $this->_people()->getPersonCards($id_pep);
         
         $this->response->headers('Content-Type', 'application/json');
         $this->response->body(json_encode(array(
@@ -720,7 +740,7 @@ public function action_get_org_structure_cards()
     {
         $this->auto_render = false;
         
-        $access_names = Model::factory('Mancard')->getAllAccessNames();
+        $access_names = $this->_org()->getAllAccessNames();
         
         $this->response->headers('Content-Type', 'application/json');
         $this->response->body(json_encode(array(
@@ -753,16 +773,16 @@ public function action_get_entity_access()
     try {
         if ($type === 'org') {
             // Для организации - только её категории
-            $result = Model::factory('Mancard')->getOrgAccessNames($id);
+            $result = $this->_org()->getOrgAccessNames($id);
             
         } elseif ($type === 'person') {
             // Для сотрудника - ТОЛЬКО его категории из SS_ACCESSUSER
-            $result = Model::factory('Mancard')->getPersonAccessNames($id);
+            $result = $this->_people()->getPersonAccessNames($id);
             
             // Дополнительно получаем категории родительской организации для сравнения
-            $org_id = Model::factory('Mancard')->getPersonOrganization($id);
+            $org_id = $this->_people()->getPersonOrganization($id);
             if ($org_id) {
-                $org_access = Model::factory('Mancard')->getOrgAccessNames($org_id);
+                $org_access = $this->_org()->getOrgAccessNames($org_id);
             }
         } else {
             $this->response->headers('Content-Type', 'application/json');
@@ -816,9 +836,9 @@ public function action_get_entity_access()
         
         try {
             if ($type === 'org') {
-                Model::factory('Mancard')->updateOrgAccessNames($id, $access_ids);
+                $this->_org()->updateOrgAccessNames($id, $access_ids);
             } elseif ($type === 'person') {
-                Model::factory('Mancard')->updatePersonAccessNames($id, $access_ids);
+                $this->_people()->updatePersonAccessNames($id, $access_ids);
             } else {
                 $this->response->body(json_encode(array(
                     'success' => false,
@@ -859,8 +879,8 @@ public function action_search_people()
     
     try {
         // Используем поиск по полному ФИО
-       // $people = Model::factory('Mancard')->searchPeopleFull($query);
-        $people = Model::factory('Mancard')->searchPeople($query);
+       // $people = $this->_people()->searchPeopleFull($query);
+        $people = $this->_people()->searchPeople($query);
         
         $this->response->headers('Content-Type', 'application/json');
         $this->response->body(json_encode(array(
@@ -897,7 +917,7 @@ public function action_search_card()
     
     try {
         // Ищем сотрудников по номеру карты
-        $people = Model::factory('Mancard')->searchByCard($query);
+        $people = $this->_people()->searchByCard($query);
         
         $this->response->headers('Content-Type', 'application/json');
         $this->response->body(json_encode(array(
