@@ -466,6 +466,50 @@ public function action_index()
     }
     
     /**
+     * AJAX: Получить свойства организации для панели «Свойства»
+     */
+    public function action_get_organization()
+    {
+        $this->auto_render = false;
+        $org_id = (int) $this->request->param('id', 0);
+
+        if ($org_id <= 0) {
+            $this->response->body(json_encode(array(
+                'success' => false,
+                'message' => 'Неверный ID организации'
+            )));
+            return;
+        }
+
+        try {
+            $org = $this->_org()->getOrganizationInfo($org_id);
+
+            if (empty($org)) {
+                $this->response->headers('Content-Type', 'application/json');
+                $this->response->body(json_encode(array(
+                    'success' => false,
+                    'message' => 'Организация не найдена'
+                )));
+                return;
+            }
+
+            $this->response->headers('Content-Type', 'application/json');
+            $this->response->body(json_encode(array(
+                'success' => true,
+                'data' => $org
+            )));
+        } catch (Exception $e) {
+            Kohana::$log->add(Log::ERROR, 'Error in action_get_organization: ' . $e->getMessage());
+
+            $this->response->headers('Content-Type', 'application/json');
+            $this->response->body(json_encode(array(
+                'success' => false,
+                'message' => $e->getMessage()
+            )));
+        }
+    }
+
+    /**
      * AJAX: Получить все организации для выпадающего списка
      */
     public function action_get_organizations()

@@ -116,6 +116,211 @@ class Model_Mancard_Org extends Model {
     }
 
     /**
+     * Плоский справочник организаций: ID_ORG => array(NAME, ID_PARENT)
+     *
+     * Используется для построения пути и подсчёта вложенных элементов
+     * без рекурсивных запросов к БД.
+     *
+     * @return array
+     */
+    protected function getOrgFlatMap()
+    {
+        $map = array();
+        foreach ($this->getAllOrganizations() as $org) {
+            $map[(int)$org['ID_ORG']] = array(
+                'NAME' => $org['NAME'],
+                'ID_PARENT' => (int)$org['ID_PARENT'],
+            );
+        }
+
+        return $map;
+    }
+
+    /**
+     * Путь организации от корня: "Корень / Администрация / Отдел кадров"
+     *
+     * @param int $id_org
+     * @param array|null $map справочник организаций (если уже загружен)
+     * @return string
+     */
+    protected function getOrganizationPath($id_org, array $map = null)
+    {
+        $id_org = (int)$id_org;
+
+        if ($map === null) {
+            $map = $this->getOrgFlatMap();
+        }
+
+        $path = array();
+        $current = $id_org;
+        $guard = 0;
+
+        while ($current > 0 && isset($map[$current]) && $guard < 100) {
+            array_unshift($path, $map[$current]['NAME']);
+
+            $parent = (int)$map[$current]['ID_PARENT'];
+            if ($parent === $current) {
+                break; // защита от цикла
+            }
+            $current = $parent;
+            $guard++;
+        }
+
+        return implode(' / ', $path);
+    }
+
+    /**
+     * ID подчинённых организаций (вся вложенность), без самой организации
+     *
+     * @param int $id_org
+     * @param array|null $map справочник организаций (если уже загружен)
+     * @return array
+     */
+    protected function getDescendantOrgIds($id_org, array $map = null)
+    {
+        $id_org = (int)$id_org;
+
+        if ($map === null) {
+            $map = $this->getOrgFlatMap();
+        }
+
+        $ids = array();
+        $queue = array($id_org);
+        $guard = 0;
+
+        while (!empty($queue) && $guard < 10000) {
+            $parent = array_shift($queue);
+
+            foreach ($map as $child_id => $org) {
+                if ($org['ID_PARENT'] === $parent && $child_id !== $id_org && !in_array($child_id, $ids, true)) {
+                    $ids[] = $child_id;
+                    $queue[] = $child_id;
+                }
+            }
+            $guard++;
+        }
+
+        return $ids;
+    }
+
+    /**
+     * Свойства организации для панели «Свойства»
+     *
+     * @param int $id_org
+     * @return array|null null, если организация не найдена
+     */
+    public function getOrganizationInfo($id_org)
+    {
+        $id_org = (int)$id_org;
+
+        $sql = 'SELECT
+                    o.ID_ORG,
+                    o.NAME,
+                    o.ID_PARENT,
+                    o.FLAG,
+                    o.DIVCODE,
+                    o.TIME_STAMP,
+                    p.NAME AS PARENT_NAME,
+                    a.NAME AS DEFAULT_ACCESS_NAME,
+                    (SELECT COUNT(*) FROM PEOPLE WHERE ID_ORG = o.ID_ORG AND "ACTIVE" = 1) AS PEOPLE_COUNT,
+                    (SELECT COUNT(*) FROM PEOPLE WHERE ID_ORG = o.ID_ORG) AS PEOPLE_TOTAL,
+                    (SELECT COUNT(*) FROM ORGANIZATION WHERE ID_PARENT = o.ID_ORG AND ID_DB = 1 AND ID_ORG != 0) AS CHILDREN_COUNT
+                FROM ORGANIZATION o
+                LEFT JOIN ORGANIZATION p ON p.ID_ORG = o.ID_PARENT
+                LEFT JOIN ACCESSNAME a ON a.ID_ACCESSNAME = o.ID_DEF_ACCESSNAME AND a.ID_DB = 1
+                WHERE o.ID_ORG = ' . $id_org;
+
+        $query = DB::query(Database::SELECT, $sql)
+            ->execute(Database::instance('fb'))
+            ->as_array();
+
+        if (empty($query)) {
+            return null;
+        }
+
+        $row = $query[0];
+        $map = $this->getOrgFlatMap();
+
+        // Сотрудники по организациям — для подсчёта с учётом вложенности
+        $people_by_org = array();
+        $sql = 'SELECT ID_ORG, "ACTIVE", COUNT(*) AS CNT FROM PEOPLE GROUP BY ID_ORG, "ACTIVE"';
+
+        try {
+            $people_query = DB::query(Database::SELECT, $sql)
+                ->execute(Database::instance('fb'))
+                ->as_array();
+
+            foreach ($people_query as $people_row) {
+                $org_id = (int)$people_row['ID_ORG'];
+                if (!isset($people_by_org[$org_id])) {
+                    $people_by_org[$org_id] = array('ACTIVE' => 0, 'TOTAL' => 0);
+                }
+                $people_by_org[$org_id]['TOTAL'] += (int)$people_row['CNT'];
+                if ((int)$people_row['ACTIVE'] === 1) {
+                    $people_by_org[$org_id]['ACTIVE'] += (int)$people_row['CNT'];
+                }
+            }
+        } catch (Exception $e) {
+            Kohana::$log->add(Log::ERROR, 'Error in getOrganizationInfo (people counts): ' . $e->getMessage());
+            $people_by_org = array();
+        }
+
+        // Считаем вложенные организации и сотрудников в них
+        $descendants = $this->getDescendantOrgIds($id_org, $map);
+        $subtree_people = isset($people_by_org[$id_org]) ? $people_by_org[$id_org]['ACTIVE'] : 0;
+        $subtree_people_total = isset($people_by_org[$id_org]) ? $people_by_org[$id_org]['TOTAL'] : 0;
+
+        foreach ($descendants as $descendant_id) {
+            if (isset($people_by_org[$descendant_id])) {
+                $subtree_people += $people_by_org[$descendant_id]['ACTIVE'];
+                $subtree_people_total += $people_by_org[$descendant_id]['TOTAL'];
+            }
+        }
+
+        $path = $this->getOrganizationPath($id_org, $map);
+        $levels = ($path === '') ? 0 : (count(explode(' / ', $path)) - 1);
+
+        return array(
+            'ID_ORG' => (int)$row['ID_ORG'],
+            'NAME' => $this->_utf($row['NAME']),
+            'IS_ROOT' => ((int)$row['ID_ORG'] === 1),
+            'ID_PARENT' => (int)$row['ID_PARENT'],
+            'PARENT_NAME' => ($row['PARENT_NAME'] === null) ? null : $this->_utf($row['PARENT_NAME']),
+            'PATH' => $path,
+            'LEVEL' => $levels,
+            'PEOPLE_COUNT' => (int)$row['PEOPLE_COUNT'],
+            'PEOPLE_TOTAL' => (int)$row['PEOPLE_TOTAL'],
+            'CHILDREN_COUNT' => (int)$row['CHILDREN_COUNT'],
+            'SUBTREE_ORGS_COUNT' => count($descendants),
+            'SUBTREE_PEOPLE_COUNT' => $subtree_people,
+            'SUBTREE_PEOPLE_TOTAL' => $subtree_people_total,
+            'DIVCODE' => ($row['DIVCODE'] === null) ? null : $this->_utf($row['DIVCODE']),
+            'FLAG' => (int)$row['FLAG'],
+            'DEFAULT_ACCESS_NAME' => ($row['DEFAULT_ACCESS_NAME'] === null) ? null : $this->_utf($row['DEFAULT_ACCESS_NAME']),
+            'TIME_STAMP' => $this->_formatTimestamp($row['TIME_STAMP']),
+        );
+    }
+
+    /**
+     * Привести метку времени Firebird к виду ДД.ММ.ГГГГ ЧЧ:ММ:СС
+     *
+     * @param string|null $timestamp
+     * @return string|null
+     */
+    protected function _formatTimestamp($timestamp)
+    {
+        if (empty($timestamp)) {
+            return null;
+        }
+
+        if (preg_match('/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}:\d{2}:\d{2})/', (string)$timestamp, $matches)) {
+            return $matches[3] . '.' . $matches[2] . '.' . $matches[1] . ' ' . $matches[4];
+        }
+
+        return (string)$timestamp;
+    }
+
+    /**
      * Получить корневые организации
      */
     public function getRootOrganizations()

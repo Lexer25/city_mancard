@@ -108,12 +108,25 @@
     background: #fafafa;
 }
 
-/* Панель информации о сотруднике */
-.info-panel {
+/* Панель свойств выбранного элемента (организация или сотрудник) */
+.props-panel {
     min-height: 300px;
 }
-.info-panel .panel-body {
+.props-panel .panel-body {
     padding: 15px;
+    max-height: 500px;
+    overflow-y: auto;
+}
+.props-entity-title {
+    display: block;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #e7e7e7;
+    font-weight: 600;
+    color: #337ab7;
+}
+.props-entity-title .glyphicon {
+    margin-right: 4px;
 }
 .info-item {
     padding: 5px 0;
@@ -124,12 +137,23 @@
 }
 .info-item .label {
     display: inline-block;
-    width: 140px;
+    width: 160px;
     font-weight: 600;
     color: #555;
+    white-space: normal;
+    text-align: left;
 }
 .info-item .value {
     color: #333;
+    word-wrap: break-word;
+}
+.props-actions {
+    margin-top: 10px;
+    padding-top: 12px;
+    border-top: 1px solid #eee;
+}
+.props-actions .btn {
+    margin-right: 5px;
 }
 
 /* Панель категорий доступа */
@@ -333,7 +357,7 @@
     .org-panel {
         margin-bottom: 15px;
     }
-    .info-panel {
+    .props-panel {
         margin-top: 15px;
     }
 }
@@ -467,24 +491,25 @@
                 </div>
             </div>
             
-            <!-- Центральная панель - информация о сотруднике -->
+            <!-- Центральная панель - свойства выбранного элемента -->
             <div class="col-md-4">
-                <div class="panel panel-info info-panel">
+                <div class="panel panel-info props-panel">
                     <div class="panel-heading">
                         <h4 class="panel-title">
-                            <span class="glyphicon glyphicon-user"></span>
-                            <?php echo __('Информация о сотруднике'); ?>
+                            <span class="glyphicon glyphicon-list-alt"></span>
+                            <?php echo __('Свойства'); ?>
                             <span class="pull-right">
+                                <span class="label label-info" id="props-entity-badge" style="display: none; font-size: 10px;"></span>
                                 <button class="btn btn-xs btn-success" id="btn-add-person" title="<?php echo __('Новый сотрудник'); ?>">
                                     <span class="glyphicon glyphicon-plus"></span>
                                 </button>
                             </span>
                         </h4>
                     </div>
-                    <div class="panel-body" id="person-info-container">
+                    <div class="panel-body" id="properties-container">
                         <div class="text-center text-muted" style="padding: 40px 0;">
                             <span class="glyphicon glyphicon-info-sign" style="font-size: 3em;"></span>
-                            <p style="margin-top: 10px;"><?php echo __('Выберите сотрудника в дереве слева'); ?></p>
+                            <p style="margin-top: 10px;"><?php echo __('Выберите организацию или сотрудника в дереве слева'); ?></p>
                         </div>
                     </div>
                 </div>
@@ -798,6 +823,7 @@ $(document).ready(function() {
             currentEntityId = orgId;
             updateSelectedInfo('org', orgId);
             updateHoverInfo('org', orgId);
+            loadOrgProperties(orgId);
             loadAccessForOrg(orgId);
         }
     });
@@ -813,7 +839,7 @@ $(document).ready(function() {
             currentEntityId = personId;
             updateSelectedInfo('person', personId, orgId);
             updateHoverInfo('person', personId, orgId);
-            loadPersonInfo(personId);
+            loadPersonProperties(personId);
             loadAccessForPerson(personId);
         }
     });
@@ -1041,15 +1067,136 @@ $(document).ready(function() {
         updateAccessCount();
     });
     
-    // ===== Загрузка информации о сотруднике =====
-    function loadPersonInfo(personId) {
+    // ===== Вспомогательные функции панели «Свойства» =====
+    function escapeHtml(value) {
+        return String(value === null || value === undefined ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+    
+    // Строка свойств: подпись + значение (значение экранируется)
+    function propsRow(label, value, isStrong) {
+        var isEmpty = (value === null || value === undefined || value === '');
+        var text = isEmpty ? '—' : escapeHtml(value);
+        var valueHtml = isEmpty ? '<span class="text-muted">—</span>' : (isStrong ? '<strong>' + text + '</strong>' : text);
+        
+        return '<div class="info-item"><span class="label">' + escapeHtml(label) + ':</span>' +
+               '<span class="value">' + valueHtml + '</span></div>';
+    }
+    
+    // Строка свойств, где значение — уже готовый HTML
+    function propsRawRow(label, valueHtml) {
+        return '<div class="info-item"><span class="label">' + escapeHtml(label) + ':</span>' +
+               '<span class="value">' + valueHtml + '</span></div>';
+    }
+    
+    // Бейдж с типом выбранного элемента в заголовке панели
+    function setPropsEntity(type) {
+        var $badge = $('#props-entity-badge');
+        
+        if (type === 'org') {
+            $badge.text('<?php echo __('Организация'); ?>').removeClass('label-success').addClass('label-info').show();
+        } else if (type === 'person') {
+            $badge.text('<?php echo __('Сотрудник'); ?>').removeClass('label-info').addClass('label-success').show();
+        } else {
+            $badge.hide();
+        }
+    }
+    
+    function showPropsLoading() {
+        $('#properties-container').html('<div class="text-center text-muted" style="padding: 40px 0;"><span class="glyphicon glyphicon-refresh glyphicon-spin" style="font-size: 2em;"></span><p style="margin-top: 10px;"><?php echo __('Загрузка...'); ?></p></div>');
+    }
+    
+    function showPropsError(message) {
+        $('#properties-container').html('<div class="alert alert-danger">' + escapeHtml(message || '<?php echo __('Ошибка загрузки'); ?>') + '</div>');
+    }
+    
+    // ===== Загрузка свойств организации =====
+    function loadOrgProperties(orgId) {
+        setPropsEntity('org');
+        showPropsLoading();
+        
+        $.ajax({
+            url: '<?php echo URL::site('mancard/get_organization'); ?>/' + orgId,
+            type: 'GET',
+            dataType: 'json',
+            success: function(response) {
+                if (response.success && response.data) {
+                    displayOrgProperties(response.data);
+                } else {
+                    showPropsError(response.message);
+                }
+            },
+            error: function() {
+                showPropsError();
+            }
+        });
+    }
+    
+    // ===== Отображение свойств организации =====
+    function displayOrgProperties(org) {
+        setPropsEntity('org');
+        
+        var html = '<div class="row"><div class="col-md-12">';
+        
+        html += '<span class="props-entity-title"><span class="glyphicon glyphicon-home"></span>' +
+                escapeHtml(org.NAME) + '</span>';
+        
+        html += propsRow('<?php echo __('ID'); ?>', org.ID_ORG, true);
+        html += propsRow('<?php echo __('Название'); ?>', org.NAME, true);
+        
+        if (org.IS_ROOT) {
+            html += propsRow('<?php echo __('Родительская организация'); ?>', '<?php echo __('Корневая организация'); ?>');
+        } else {
+            var parentLabel = '[' + org.ID_PARENT + '] ' + (org.PARENT_NAME || '');
+            html += propsRow('<?php echo __('Родительская организация'); ?>', parentLabel);
+        }
+        
+        html += propsRow('<?php echo __('Путь от корня'); ?>', org.PATH);
+        html += propsRow('<?php echo __('Уровень вложенности'); ?>', org.LEVEL);
+        html += propsRow('<?php echo __('Сотрудников в подразделении'); ?>', org.PEOPLE_COUNT);
+        html += propsRow('<?php echo __('Подразделений в подчинении'); ?>', org.CHILDREN_COUNT);
+        html += propsRow('<?php echo __('Всего подразделений с вложенными'); ?>', org.SUBTREE_ORGS_COUNT);
+        html += propsRow('<?php echo __('Всего сотрудников с вложенными'); ?>', org.SUBTREE_PEOPLE_COUNT);
+        html += propsRow('<?php echo __('Код подразделения'); ?>', org.DIVCODE);
+        html += propsRow('<?php echo __('Категория доступа по умолчанию'); ?>', org.DEFAULT_ACCESS_NAME);
+        html += propsRow('<?php echo __('Изменено'); ?>', org.TIME_STAMP);
+        
+        html += '<div class="props-actions">' +
+            '<button class="btn btn-primary btn-sm" id="btn-props-rename-org" data-org-id="' + org.ID_ORG + '" data-org-name="' + escapeHtml(org.NAME) + '">' +
+                '<span class="glyphicon glyphicon-pencil"></span> <?php echo __('Переименовать'); ?>' +
+            '</button>' +
+            '<button class="btn btn-info btn-sm" id="btn-props-add-child" data-org-id="' + org.ID_ORG + '">' +
+                '<span class="glyphicon glyphicon-plus"></span> <?php echo __('Добавить подразделение'); ?>' +
+            '</button>' +
+            '</div>';
+        
+        html += '</div></div>';
+        
+        $('#properties-container').html(html);
+    }
+    
+    // ===== Кнопки панели свойств организации =====
+    $(document).on('click', '#btn-props-rename-org', function() {
+        renameOrganization($(this).data('org-id'), $(this).data('org-name'));
+    });
+    
+    $(document).on('click', '#btn-props-add-child', function() {
+        addChildOrganization($(this).data('org-id'));
+    });
+    
+    // ===== Загрузка свойств сотрудника =====
+    function loadPersonProperties(personId) {
+        setPropsEntity('person');
+        showPropsLoading();
+        
         $.ajax({
             url: '<?php echo URL::site('mancard/get_person'); ?>/' + personId,
             type: 'GET',
             dataType: 'json',
-            beforeSend: function() {
-                $('#person-info-container').html('<div class="text-center text-muted" style="padding: 40px 0;"><span class="glyphicon glyphicon-refresh glyphicon-spin" style="font-size: 2em;"></span><p style="margin-top: 10px;"><?php echo __('Загрузка...'); ?></p></div>');
-            },
             success: function(response) {
                 if (response.success && response.data) {
                     $.ajax({
@@ -1057,29 +1204,29 @@ $(document).ready(function() {
                         type: 'GET',
                         dataType: 'json',
                         success: function(cardsResponse) {
-                            if (cardsResponse.success) {
-                                response.data.CARDS = cardsResponse.data;
-                            }
-                            displayPersonInfo(response.data);
+                            response.data.CARDS = (cardsResponse.success && cardsResponse.data) ? cardsResponse.data : [];
+                            displayPersonProperties(response.data);
                         },
                         error: function() {
                             response.data.CARDS = [];
-                            displayPersonInfo(response.data);
+                            displayPersonProperties(response.data);
                         }
                     });
                 } else {
-                    $('#person-info-container').html('<div class="alert alert-danger">' + (response.message || '<?php echo __('Ошибка загрузки'); ?>') + '</div>');
+                    showPropsError(response.message);
                 }
             },
             error: function() {
-                $('#person-info-container').html('<div class="alert alert-danger"><?php echo __('Ошибка загрузки'); ?></div>');
+                showPropsError();
             }
         });
     }
     
-    // ===== Отображение информации о сотруднике =====
-    function displayPersonInfo(person) {
-        var fullName = person.SURNAME + ' ' + person.NAME + ' ' + person.PATRONYMIC;
+    // ===== Отображение свойств сотрудника =====
+    function displayPersonProperties(person) {
+        setPropsEntity('person');
+        
+        var fullName = person.SURNAME + ' ' + person.NAME + ' ' + (person.PATRONYMIC || '');
         var statusText = person.ACTIVE == 1 ? '<?php echo __('Активен'); ?>' : '<?php echo __('Неактивен'); ?>';
         var statusClass = person.ACTIVE == 1 ? 'success' : 'default';
         
@@ -1091,11 +1238,11 @@ $(document).ready(function() {
                 var cardIcon = getCardIcon(card.CARDTYPE_NAME);
                 var inactiveClass = card.ACTIVE == 1 ? '' : 'card-badge-inactive';
                 var displayName = card.CARDTYPE_SMALLNAME || card.CARDTYPE_NAME;
+                var cardTitle = card.CARDTYPE_NAME + (card.ACTIVE == 0 ? ' (неактивна)' : '');
                 
-                cardsHtml += '<span class="card-badge ' + cardClass + ' ' + inactiveClass + '" title="' + 
-                    card.CARDTYPE_NAME + (card.ACTIVE == 0 ? ' (неактивна)' : '') + '" style="font-size: 11px; padding: 2px 8px; margin: 2px;">' +
+                cardsHtml += '<span class="card-badge ' + cardClass + ' ' + inactiveClass + '" title="' + escapeHtml(cardTitle) + '" style="font-size: 11px; padding: 2px 8px; margin: 2px;">' +
                     '<span class="' + cardIcon + '"></span> ' +
-                    displayName + ': ' + card.ID_CARD +
+                    escapeHtml(displayName) + ': ' + escapeHtml(card.ID_CARD) +
                     '</span>';
             });
             cardsHtml += '</span></div>';
@@ -1103,37 +1250,41 @@ $(document).ready(function() {
             cardsHtml = '<div class="info-item"><span class="label"><?php echo __('Идентификаторы'); ?>:</span><span class="value text-muted"><?php echo __('Нет идентификаторов'); ?></span></div>';
         }
         
-        var html = '<div class="row">' +
-            '<div class="col-md-12">' +
-            '<div class="info-item"><span class="label"><?php echo __('ID'); ?>:</span><span class="value"><strong>' + person.ID_PEP + '</strong></span></div>' +
-            '<div class="info-item"><span class="label"><?php echo __('ФИО'); ?>:</span><span class="value"><strong>' + fullName + '</strong></span></div>' +
-            '<div class="info-item"><span class="label"><?php echo __('Должность'); ?>:</span><span class="value">' + (person.POST || '—') + '</span></div>' +
-            '<div class="info-item"><span class="label"><?php echo __('Табельный номер'); ?>:</span><span class="value">' + (person.TABNUM || '—') + '</span></div>' +
-            '<div class="info-item"><span class="label"><?php echo __('Логин'); ?>:</span><span class="value">' + (person.LOGIN || '—') + '</span></div>' +
-            '<div class="info-item"><span class="label"><?php echo __('Организация'); ?>:</span><span class="value">' + (person.ORG_NAME || '—') + '</span></div>' +
-            '<div class="info-item"><span class="label"><?php echo __('Статус'); ?>:</span><span class="value"><span class="label label-' + statusClass + '">' + statusText + '</span></span></div>' +
-            '<div class="info-item"><span class="label"><?php echo __('Телефон'); ?>:</span><span class="value">' + (person.PHONEWORK || '—') + '</span></div>' +
-            '<div class="info-item"><span class="label"><?php echo __('Мобильный'); ?>:</span><span class="value">' + (person.PHONECELLULAR || '—') + '</span></div>' +
-            '<div class="info-item"><span class="label"><?php echo __('Домашний телефон'); ?>:</span><span class="value">' + (person.PHONEHOME || '—') + '</span></div>' +
-            cardsHtml +
-            '<div class="info-item"><span class="label"><?php echo __('Дата рождения'); ?>:</span><span class="value">' + (person.DATEBIRTH || '—') + '</span></div>' +
-            '<div class="info-item"><span class="label"><?php echo __('Место рождения'); ?>:</span><span class="value">' + (person.PLACEBIRTH || '—') + '</span></div>' +
-            '<div class="info-item"><span class="label"><?php echo __('Адрес проживания'); ?>:</span><span class="value">' + (person.PLACELIFE || '—') + '</span></div>' +
-            '<div class="info-item"><span class="label"><?php echo __('Адрес регистрации'); ?>:</span><span class="value">' + (person.PLACEREG || '—') + '</span></div>' +
-            '<div class="info-item"><span class="label"><?php echo __('Паспорт'); ?>:</span><span class="value">' + (person.NUMDOC || '—') + '</span></div>' +
-            '<div class="info-item"><span class="label"><?php echo __('Дата выдачи'); ?>:</span><span class="value">' + (person.DATEDOC || '—') + '</span></div>' +
-            '<div class="info-item"><span class="label"><?php echo __('Кем выдан'); ?>:</span><span class="value">' + (person.PLACEDOC || '—') + '</span></div>' +
-            '<div class="info-item"><span class="label"><?php echo __('Примечание'); ?>:</span><span class="value">' + (person.NOTE || '—') + '</span></div>' +
-            '<div class="info-item"><span class="label"><?php echo __('Служебные записи'); ?>:</span><span class="value">' + (person.SYSNOTE || '—') + '</span></div>' +
-            '<div class="info-item" style="border-bottom: none; padding-top: 15px;">' +
-                '<button class="btn btn-primary btn-sm" onclick="openEditPersonDialog(' + person.ID_PEP + ', ' + person.ID_ORG + ')">' +
-                    '<span class="glyphicon glyphicon-pencil"></span> <?php echo __('Редактировать'); ?>' +
-                '</button>' +
-            '</div>' +
-            '</div>' +
+        var html = '<div class="row"><div class="col-md-12">';
+        
+        html += '<span class="props-entity-title"><span class="glyphicon glyphicon-user"></span>' +
+                escapeHtml(fullName) + '</span>';
+        
+        html += propsRow('<?php echo __('ID'); ?>', person.ID_PEP, true);
+        html += propsRow('<?php echo __('ФИО'); ?>', fullName, true);
+        html += propsRow('<?php echo __('Должность'); ?>', person.POST);
+        html += propsRow('<?php echo __('Табельный номер'); ?>', person.TABNUM);
+        html += propsRow('<?php echo __('Логин'); ?>', person.LOGIN);
+        html += propsRow('<?php echo __('Организация'); ?>', person.ORG_NAME);
+        html += propsRawRow('<?php echo __('Статус'); ?>', '<span class="label label-' + statusClass + '">' + statusText + '</span>');
+        html += propsRow('<?php echo __('Телефон'); ?>', person.PHONEWORK);
+        html += propsRow('<?php echo __('Мобильный'); ?>', person.PHONECELLULAR);
+        html += propsRow('<?php echo __('Домашний телефон'); ?>', person.PHONEHOME);
+        html += cardsHtml;
+        html += propsRow('<?php echo __('Дата рождения'); ?>', person.DATEBIRTH);
+        html += propsRow('<?php echo __('Место рождения'); ?>', person.PLACEBIRTH);
+        html += propsRow('<?php echo __('Адрес проживания'); ?>', person.PLACELIFE);
+        html += propsRow('<?php echo __('Адрес регистрации'); ?>', person.PLACEREG);
+        html += propsRow('<?php echo __('Паспорт'); ?>', person.NUMDOC);
+        html += propsRow('<?php echo __('Дата выдачи'); ?>', person.DATEDOC);
+        html += propsRow('<?php echo __('Кем выдан'); ?>', person.PLACEDOC);
+        html += propsRow('<?php echo __('Примечание'); ?>', person.NOTE);
+        html += propsRow('<?php echo __('Служебные записи'); ?>', person.SYSNOTE);
+        
+        html += '<div class="props-actions">' +
+            '<button class="btn btn-primary btn-sm" onclick="openEditPersonDialog(' + person.ID_PEP + ', ' + person.ID_ORG + ')">' +
+                '<span class="glyphicon glyphicon-pencil"></span> <?php echo __('Редактировать'); ?>' +
+            '</button>' +
             '</div>';
         
-        $('#person-info-container').html(html);
+        html += '</div></div>';
+        
+        $('#properties-container').html(html);
     }
     
     // ===== Добавление организации =====
@@ -1163,10 +1314,7 @@ $(document).ready(function() {
     });
     
     // ===== Добавление подразделения =====
-    $(document).on('click', '.btn-add-child', function(e) {
-        e.stopPropagation();
-        var $node = $(this).closest('.tree-item').closest('.tree-node');
-        var parentId = $node.data('org-id');
+    function addChildOrganization(parentId) {
         var name = prompt('<?php echo __('Введите новое название'); ?>', '');
         
         if (name && name.trim()) {
@@ -1188,15 +1336,16 @@ $(document).ready(function() {
                 }
             });
         }
+    }
+    
+    $(document).on('click', '.btn-add-child', function(e) {
+        e.stopPropagation();
+        var $node = $(this).closest('.tree-item').closest('.tree-node');
+        addChildOrganization($node.data('org-id'));
     });
     
     // ===== Переименование организации =====
-    $(document).on('click', '.btn-rename-org', function(e) {
-        e.stopPropagation();
-        var $node = $(this).closest('.tree-item').closest('.tree-node');
-        var orgId = $node.data('org-id');
-        var currentName = $node.find('.org-name').text();
-        
+    function renameOrganization(orgId, currentName) {
         if (orgId == 1) {
             alert('<?php echo __('Нельзя переименовать корневую организацию'); ?>');
             return;
@@ -1222,6 +1371,12 @@ $(document).ready(function() {
                 }
             });
         }
+    }
+    
+    $(document).on('click', '.btn-rename-org', function(e) {
+        e.stopPropagation();
+        var $node = $(this).closest('.tree-item').closest('.tree-node');
+        renameOrganization($node.data('org-id'), $node.find('.org-name').text());
     });
     
     // ===== Удаление организации =====
@@ -1256,10 +1411,14 @@ $(document).ready(function() {
     // ===== Добавление сотрудника =====
     $('#btn-add-person').on('click', function() {
         var orgId = 1;
-        var $activeOrg = $('.tree-item-org').first();
-        if ($activeOrg.length) {
-            orgId = $activeOrg.closest('.tree-node').data('org-id') || 1;
+        
+        if (currentEntityType === 'org' && currentEntityId) {
+            orgId = currentEntityId;
+        } else if (currentEntityType === 'person' && currentEntityId) {
+            var $personNode = $('.tree-item-person[data-person-id="' + currentEntityId + '"]');
+            orgId = $personNode.data('org-id') || 1;
         }
+        
         openEditPersonDialog(0, orgId);
     });
     
