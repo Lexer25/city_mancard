@@ -147,13 +147,13 @@
     color: #333;
     word-wrap: break-word;
 }
-.props-actions {
-    margin-top: 10px;
-    padding-top: 12px;
-    border-top: 1px solid #eee;
+/* Бейдж выбранного элемента — у заголовка «Свойства», кнопки — справа */
+.props-panel .panel-heading #props-entity-badge {
+    margin-left: 5px;
 }
-.props-actions .btn {
-    margin-right: 5px;
+.props-panel .panel-heading #props-actions-heading .btn {
+    margin-left: 4px;
+    margin-bottom: 2px;
 }
 
 /* Панель категорий доступа */
@@ -498,12 +498,8 @@
                         <h4 class="panel-title">
                             <span class="glyphicon glyphicon-list-alt"></span>
                             <?php echo __('Свойства'); ?>
-                            <span class="pull-right">
-                                <span class="label label-info" id="props-entity-badge" style="display: none; font-size: 10px;"></span>
-                                <button class="btn btn-xs btn-success" id="btn-add-person" title="<?php echo __('Новый сотрудник'); ?>">
-                                    <span class="glyphicon glyphicon-plus"></span>
-                                </button>
-                            </span>
+                            <span class="label label-info" id="props-entity-badge" style="display: none; font-size: 10px;"></span>
+                            <span class="pull-right" id="props-actions-heading"></span>
                         </h4>
                     </div>
                     <div class="panel-body" id="properties-container">
@@ -554,7 +550,10 @@
 </div>
 
 <!-- Модальные окна -->
+<?php echo View::factory('mancard/modal_common'); ?>
 <?php echo View::factory('mancard/edit_person'); ?>
+<?php echo View::factory('mancard/edit_org'); ?>
+<?php echo View::factory('mancard/delete_person'); ?>
 
 <script>
 $(document).ready(function() {
@@ -690,6 +689,13 @@ $(document).ready(function() {
         }
     });
     
+    // ===== Сообщение вместо содержимого ветки =====
+    // У корневой организации списков два (подразделения и сотрудники), текст пишем в первый
+    function showNodeMessage($children, html) {
+        $children.empty();
+        $children.first().html(html);
+    }
+    
     // ===== Загрузка содержимого узла =====
     function loadNodeContent($node) {
         var orgId = $node.data('org-id');
@@ -701,7 +707,7 @@ $(document).ready(function() {
             type: 'GET',
             dataType: 'json',
             beforeSend: function() {
-                $children.html('<div class="text-center text-muted" style="padding: 10px;"><span class="glyphicon glyphicon-refresh glyphicon-spin"></span> <?php echo __('Загрузка...'); ?></div>');
+                showNodeMessage($children, '<div class="text-center text-muted" style="padding: 10px;"><span class="glyphicon glyphicon-refresh glyphicon-spin"></span> <?php echo __('Загрузка...'); ?></div>');
             },
             success: function(response) {
                 if (response.success && response.data) {
@@ -710,17 +716,47 @@ $(document).ready(function() {
                     $icon.html('📂');
                     $node.data('expanded', true);
                 } else {
-                    $children.html('<div class="text-muted" style="padding: 10px;"><span class="glyphicon glyphicon-info-sign"></span> <?php echo __('Нет данных'); ?></div>');
+                    showNodeMessage($children, '<div class="text-muted" style="padding: 10px;"><span class="glyphicon glyphicon-info-sign"></span> <?php echo __('Нет данных'); ?></div>');
                 }
             },
             error: function() {
-                $children.html('<div class="text-danger" style="padding: 10px;"><span class="glyphicon glyphicon-exclamation-sign"></span> <?php echo __('Ошибка загрузки'); ?></div>');
+                showNodeMessage($children, '<div class="text-danger" style="padding: 10px;"><span class="glyphicon glyphicon-exclamation-sign"></span> <?php echo __('Ошибка загрузки'); ?></div>');
             }
         });
     }
     
+    // ===== Бейдж счётчика у узла дерева (создаём, если его ещё нет) =====
+    function setNodeBadge($item, $badge, icon, count, activeColor) {
+        if (!$badge || !$badge.length) {
+            if (count <= 0) {
+                return;
+            }
+            
+            $badge = $('<span class="badge" style="margin-left: 3px; font-size: 10px;"></span>');
+            var $actions = $item.find('.org-actions');
+            
+            if ($actions.length) {
+                $badge.insertBefore($actions);
+            } else {
+                $item.append($badge);
+            }
+        }
+        
+        $badge.text(' ' + icon + ' ' + count);
+        
+        if (count > 0) {
+            $badge.removeClass('badge-empty').css({'background-color': activeColor, 'color': '#fff'});
+        } else {
+            $badge.addClass('badge-empty').css({'background-color': '#f5f5f5', 'color': '#ccc'});
+        }
+    }
+    
     // ===== Рендеринг детей узла =====
+    // $container — один список .tree-children, у корня — два (подразделения и сотрудники)
     function renderNodeChildren($container, data) {
+        var $orgsList = $container.first();
+        var $peopleList = ($container.length > 1) ? $container.eq(1) : $container.first();
+        
         $container.empty();
         
         // Рендерим организации
@@ -771,7 +807,7 @@ $(document).ready(function() {
                 var $childrenUl = $('<ul class="tree-children" style="display:none;">');
                 $li.append($childrenUl);
                 
-                $container.append($li);
+                $orgsList.append($li);
             });
         }
         
@@ -794,13 +830,40 @@ $(document).ready(function() {
                     $div.append('<span class="person-post" style="color: #999; font-size: 11px; margin-left: 5px;">(' + person.POST + ')</span>');
                 }
                 
+                $div.append('<div class="org-actions pull-right">' +
+                    '<button class="btn btn-xs btn-danger btn-delete-person" title="<?php echo __('Удалить сотрудника'); ?>">' +
+                    '<span class="glyphicon glyphicon-trash"></span>' +
+                    '</button>' +
+                    '</div>');
+                
                 $li.append($div);
-                $container.append($li);
+                $peopleList.append($li);
             });
         }
         
+        // Обновляем счётчики самого узла: сотрудники и подразделения
+        var nodePeopleCount = (data.PEOPLE && data.PEOPLE.length) ? data.PEOPLE.length : 0;
+        var nodeChildrenCount = (data.CHILDREN && data.CHILDREN.length) ? data.CHILDREN.length : 0;
+        var $nodeItem = $container.closest('.tree-node').children('.tree-item');
+        var $peopleBadge = null;
+        var $childrenBadge = null;
+        
+        $nodeItem.find('.badge').each(function() {
+            var $badge = $(this);
+            var badgeText = $badge.text();
+            
+            if (badgeText.indexOf('👤') !== -1) {
+                $peopleBadge = $badge;
+            } else if (badgeText.indexOf('📁') !== -1) {
+                $childrenBadge = $badge;
+            }
+        });
+        
+        setNodeBadge($nodeItem, $peopleBadge, '👤', nodePeopleCount, '#337ab7');
+        setNodeBadge($nodeItem, $childrenBadge, '📁', nodeChildrenCount, '#5bc0de');
+        
         if ($container.children().length === 0) {
-            $container.html('<div class="text-muted" style="padding: 10px;"><span class="glyphicon glyphicon-info-sign"></span> Пусто</div>');
+            $orgsList.html('<div class="text-muted" style="padding: 10px;"><span class="glyphicon glyphicon-info-sign"></span> Пусто</div>');
         }
         
         updateTotalOrgs();
@@ -830,6 +893,11 @@ $(document).ready(function() {
     
     // ===== Клик по сотруднику =====
     $(document).on('click', '.tree-item-person', function(e) {
+        // Клик по кнопкам действий строки (например, «Удалить») не выбирает сотрудника
+        if ($(e.target).closest('.org-actions').length > 0) {
+            return;
+        }
+        
         e.stopPropagation();
         var personId = $(this).data('person-id');
         var orgId = $(this).data('org-id');
@@ -1106,11 +1174,52 @@ $(document).ready(function() {
         }
     }
     
+    // ===== Кнопки действий в шапке панели «Свойства» =====
+    // Для организации: «Редактировать» | «Добавить подразделение» | «Добавить сотрудника»
+    // Для сотрудника: «Редактировать»
+    function renderPropsActions(type, data) {
+        var html = '';
+        
+        if (!data) {
+            $('#props-actions-heading').empty();
+            return;
+        }
+        
+        if (type === 'org') {
+            // Корневую организацию переименовать нельзя — кнопку не показываем
+            if (!data.IS_ROOT) {
+                html += '<button class="btn btn-primary btn-sm" id="btn-props-rename-org" data-org-id="' + data.ID_ORG + '" data-org-name="' + escapeHtml(data.NAME) + '">' +
+                        '<span class="glyphicon glyphicon-pencil"></span> <?php echo __('Редактировать'); ?>' +
+                    '</button>';
+            }
+            
+            html += '<button class="btn btn-info btn-sm" id="btn-props-add-child" data-org-id="' + data.ID_ORG + '">' +
+                    '<span class="glyphicon glyphicon-plus"></span> <?php echo __('Добавить подразделение'); ?>' +
+                '</button>' +
+                '<button class="btn btn-success btn-sm" id="btn-props-add-person" data-org-id="' + data.ID_ORG + '">' +
+                    '<span class="glyphicon glyphicon-user"></span> <?php echo __('Добавить сотрудника'); ?>' +
+                '</button>';
+        } else if (type === 'person') {
+            var personName = $.trim((data.SURNAME || '') + ' ' + (data.NAME || '') + ' ' + (data.PATRONYMIC || ''));
+            
+            html = '<button class="btn btn-primary btn-sm" id="btn-props-edit-person" data-person-id="' + data.ID_PEP + '" data-org-id="' + data.ID_ORG + '">' +
+                    '<span class="glyphicon glyphicon-pencil"></span> <?php echo __('Редактировать'); ?>' +
+                '</button>' +
+                '<button class="btn btn-danger btn-sm" id="btn-props-delete-person" data-person-id="' + data.ID_PEP + '" data-org-id="' + data.ID_ORG + '" data-person-name="' + escapeHtml(personName) + '" title="<?php echo __('Удалить сотрудника'); ?>">' +
+                    '<span class="glyphicon glyphicon-trash"></span> <?php echo __('Удалить'); ?>' +
+                '</button>';
+        }
+        
+        $('#props-actions-heading').html(html);
+    }
+    
     function showPropsLoading() {
+        renderPropsActions(null);
         $('#properties-container').html('<div class="text-center text-muted" style="padding: 40px 0;"><span class="glyphicon glyphicon-refresh glyphicon-spin" style="font-size: 2em;"></span><p style="margin-top: 10px;"><?php echo __('Загрузка...'); ?></p></div>');
     }
     
     function showPropsError(message) {
+        renderPropsActions(null);
         $('#properties-container').html('<div class="alert alert-danger">' + escapeHtml(message || '<?php echo __('Ошибка загрузки'); ?>') + '</div>');
     }
     
@@ -1139,6 +1248,7 @@ $(document).ready(function() {
     // ===== Отображение свойств организации =====
     function displayOrgProperties(org) {
         setPropsEntity('org');
+        renderPropsActions('org', org);
         
         var html = '<div class="row"><div class="col-md-12">';
         
@@ -1165,21 +1275,12 @@ $(document).ready(function() {
         html += propsRow('<?php echo __('Категория доступа по умолчанию'); ?>', org.DEFAULT_ACCESS_NAME);
         html += propsRow('<?php echo __('Изменено'); ?>', org.TIME_STAMP);
         
-        html += '<div class="props-actions">' +
-            '<button class="btn btn-primary btn-sm" id="btn-props-rename-org" data-org-id="' + org.ID_ORG + '" data-org-name="' + escapeHtml(org.NAME) + '">' +
-                '<span class="glyphicon glyphicon-pencil"></span> <?php echo __('Переименовать'); ?>' +
-            '</button>' +
-            '<button class="btn btn-info btn-sm" id="btn-props-add-child" data-org-id="' + org.ID_ORG + '">' +
-                '<span class="glyphicon glyphicon-plus"></span> <?php echo __('Добавить подразделение'); ?>' +
-            '</button>' +
-            '</div>';
-        
         html += '</div></div>';
         
         $('#properties-container').html(html);
     }
     
-    // ===== Кнопки панели свойств организации =====
+    // ===== Кнопки панели свойств (в шапке панели «Свойства») =====
     $(document).on('click', '#btn-props-rename-org', function() {
         renameOrganization($(this).data('org-id'), $(this).data('org-name'));
     });
@@ -1187,6 +1288,34 @@ $(document).ready(function() {
     $(document).on('click', '#btn-props-add-child', function() {
         addChildOrganization($(this).data('org-id'));
     });
+    
+    // Добавление сотрудника именно в выбранную организацию
+    $(document).on('click', '#btn-props-add-person', function() {
+        openEditPersonDialog(0, $(this).data('org-id'));
+    });
+    
+    // Редактирование выбранного сотрудника
+    $(document).on('click', '#btn-props-edit-person', function() {
+        openEditPersonDialog($(this).data('person-id'), $(this).data('org-id'));
+    });
+    
+    // Удаление выбранного сотрудника
+    $(document).on('click', '#btn-props-delete-person', function() {
+        deletePerson($(this).data('person-id'), $(this).data('org-id'), $(this).data('person-name'));
+    });
+    
+    // Удаление сотрудника из дерева (корзина на строке)
+    $(document).on('click', '.btn-delete-person', function(e) {
+        e.stopPropagation();
+        var $item = $(this).closest('.tree-item-person');
+        
+        deletePerson($item.data('person-id'), $item.data('org-id'), $.trim($item.find('.item-name').first().text()));
+    });
+    
+    // ===== Удаление сотрудника (jQuery UI окно delete_person.php) =====
+    function deletePerson(personId, orgId, personName) {
+        window.openDeletePersonDialog(personId, orgId || 1, personName || '');
+    }
     
     // ===== Загрузка свойств сотрудника =====
     function loadPersonProperties(personId) {
@@ -1225,6 +1354,7 @@ $(document).ready(function() {
     // ===== Отображение свойств сотрудника =====
     function displayPersonProperties(person) {
         setPropsEntity('person');
+        renderPropsActions('person', person);
         
         var fullName = person.SURNAME + ' ' + person.NAME + ' ' + (person.PATRONYMIC || '');
         var statusText = person.ACTIVE == 1 ? '<?php echo __('Активен'); ?>' : '<?php echo __('Неактивен'); ?>';
@@ -1276,66 +1406,21 @@ $(document).ready(function() {
         html += propsRow('<?php echo __('Примечание'); ?>', person.NOTE);
         html += propsRow('<?php echo __('Служебные записи'); ?>', person.SYSNOTE);
         
-        html += '<div class="props-actions">' +
-            '<button class="btn btn-primary btn-sm" onclick="openEditPersonDialog(' + person.ID_PEP + ', ' + person.ID_ORG + ')">' +
-                '<span class="glyphicon glyphicon-pencil"></span> <?php echo __('Редактировать'); ?>' +
-            '</button>' +
-            '</div>';
+        html += '</div></div>';
         
         html += '</div></div>';
         
         $('#properties-container').html(html);
     }
     
-    // ===== Добавление организации =====
+    // ===== Добавление организации (jQuery UI окно edit_org.php) =====
     $('#btn-add-org').on('click', function() {
-        var parentId = 1;
-        var name = prompt('<?php echo __('Введите новое название'); ?>', '');
-        
-        if (name && name.trim()) {
-            $.ajax({
-                url: '<?php echo URL::site('mancard/add_organization'); ?>',
-                type: 'POST',
-                data: {
-                    name: name.trim(),
-                    parent_id: parentId
-                },
-                dataType: 'json',
-                success: function(response) {
-                    if (response.success) {
-                        alert(response.message);
-                        location.reload();
-                    } else {
-                        alert(response.message);
-                    }
-                }
-            });
-        }
+        addChildOrganization(1);
     });
     
     // ===== Добавление подразделения =====
     function addChildOrganization(parentId) {
-        var name = prompt('<?php echo __('Введите новое название'); ?>', '');
-        
-        if (name && name.trim()) {
-            $.ajax({
-                url: '<?php echo URL::site('mancard/add_organization'); ?>',
-                type: 'POST',
-                data: {
-                    name: name.trim(),
-                    parent_id: parentId
-                },
-                dataType: 'json',
-                success: function(response) {
-                    if (response.success) {
-                        alert(response.message);
-                        location.reload();
-                    } else {
-                        alert(response.message);
-                    }
-                }
-            });
-        }
+        window.openOrgDialog('add', parentId || 1, '');
     }
     
     $(document).on('click', '.btn-add-child', function(e) {
@@ -1351,26 +1436,7 @@ $(document).ready(function() {
             return;
         }
         
-        var newName = prompt('<?php echo __('Введите новое название'); ?>', currentName);
-        if (newName && newName.trim() && newName.trim() != currentName) {
-            $.ajax({
-                url: '<?php echo URL::site('mancard/rename_organization'); ?>',
-                type: 'POST',
-                data: {
-                    id: orgId,
-                    name: newName.trim()
-                },
-                dataType: 'json',
-                success: function(response) {
-                    if (response.success) {
-                        alert(response.message);
-                        location.reload();
-                    } else {
-                        alert(response.message);
-                    }
-                }
-            });
-        }
+        window.openOrgDialog('rename', orgId, currentName || '');
     }
     
     $(document).on('click', '.btn-rename-org', function(e) {
@@ -1406,20 +1472,6 @@ $(document).ready(function() {
                 }
             });
         }
-    });
-    
-    // ===== Добавление сотрудника =====
-    $('#btn-add-person').on('click', function() {
-        var orgId = 1;
-        
-        if (currentEntityType === 'org' && currentEntityId) {
-            orgId = currentEntityId;
-        } else if (currentEntityType === 'person' && currentEntityId) {
-            var $personNode = $('.tree-item-person[data-person-id="' + currentEntityId + '"]');
-            orgId = $personNode.data('org-id') || 1;
-        }
-        
-        openEditPersonDialog(0, orgId);
     });
     
     // ===== Поиск организаций =====
@@ -1775,11 +1827,127 @@ $(document).ready(function() {
     
     updateTotalOrgs();
     
-    if ($('#root-children').children().length === 0) {
-        loadNodeContent($('#file-tree-root > .tree-node'));
+    // Если сервер отрисовал корень без содержимого — подгружаем его ветку
+    var $rootNode = $('#file-tree-root > .tree-node');
+    if ($rootNode.length > 0 && $rootNode.children('.tree-children').first().children().length === 0) {
+        loadNodeContent($rootNode);
     }
     
     loadAllAccessNames();
+    
+    // ===== Общие хелперы для модальных окон (edit_person.php, edit_org.php) =====
+    // Перечитывает ветку организации и раскрывает её
+    function reloadOrgBranch(orgId) {
+        var $orgNode = $('.tree-node[data-org-id="' + orgId + '"]');
+        
+        if ($orgNode.length === 0) {
+            return false;
+        }
+        
+        loadNodeContent($orgNode);
+        $orgNode.children('.tree-children').show();
+        $orgNode.find('.tree-toggle span').html('📂');
+        $orgNode.data('expanded', true);
+        
+        return true;
+    }
+    
+    // Ждёт появления элемента в дереве после AJAX-перерисовки ветки
+    function waitForTreeNode(selector, callback, maxAttempts) {
+        var attempts = 0;
+        maxAttempts = maxAttempts || 15;
+        
+        var timer = setInterval(function() {
+            attempts++;
+            
+            var $element = $(selector);
+            
+            if ($element.length > 0) {
+                clearInterval(timer);
+                callback($element.first());
+            } else if (attempts >= maxAttempts) {
+                clearInterval(timer);
+            }
+        }, 200);
+    }
+    
+    // ===== Внешний хук для модального окна сотрудника (jQuery UI) =====
+    // Вызывается из views/mancard/edit_person.php после успешного сохранения:
+    // перечитывает ветку дерева и панель «Свойства» для сохранённого сотрудника.
+    window.mancardRefreshAfterPersonSave = function(personId, orgId) {
+        personId = parseInt(personId, 10) || 0;
+        orgId = parseInt(orgId, 10) || 1;
+        
+        reloadOrgBranch(orgId);
+        
+        if (personId <= 0) {
+            return;
+        }
+        
+        // Сотрудник появится в дереве после ответа AJAX — ждём и выбираем его
+        waitForTreeNode('.tree-item-person[data-person-id="' + personId + '"]', function($person) {
+            currentEntityType = 'person';
+            currentEntityId = personId;
+            updateSelectedInfo('person', personId, orgId);
+            loadPersonProperties(personId);
+            loadAccessForPerson(personId);
+        });
+    };
+    
+    // ===== Внешние хуки для модального окна организации (jQuery UI) =====
+    // Добавление подразделения: перечитываем ветку родителя и выбираем новую организацию
+    window.mancardRefreshAfterOrgAdd = function(orgId, parentId) {
+        orgId = parseInt(orgId, 10) || 0;
+        parentId = parseInt(parentId, 10) || 1;
+        
+        reloadOrgBranch(parentId);
+        
+        if (orgId <= 0) {
+            return;
+        }
+        
+        waitForTreeNode('.tree-node[data-org-id="' + orgId + '"]', function($newNode) {
+            $newNode.children('.tree-item').trigger('click');
+        });
+    };
+    
+    // Удаление сотрудника: перечитываем ветку и, если удалили выбранного,
+    // показываем свойства организации, из которой он удалён
+    window.mancardRefreshAfterPersonDelete = function(personId, orgId) {
+        personId = parseInt(personId, 10) || 0;
+        orgId = parseInt(orgId, 10) || 1;
+        
+        var wasSelected = (currentEntityType === 'person' && currentEntityId == personId);
+        
+        reloadOrgBranch(orgId);
+        
+        if (!wasSelected) {
+            return;
+        }
+        
+        waitForTreeNode('.tree-node[data-org-id="' + orgId + '"]', function($node) {
+            $node.children('.tree-item').trigger('click');
+        });
+    };
+    
+    // Переименование организации: правим название в дереве и свойства выбранного элемента
+    window.mancardRefreshAfterOrgRename = function(orgId, newName) {
+        orgId = parseInt(orgId, 10) || 0;
+        
+        if (orgId <= 0) {
+            return;
+        }
+        
+        var $node = $('.tree-node[data-org-id="' + orgId + '"]');
+        
+        if ($node.length > 0) {
+            $node.children('.tree-item').find('.org-name').text(newName || '');
+        }
+        
+        if (currentEntityType === 'org' && currentEntityId == orgId) {
+            loadOrgProperties(orgId);
+        }
+    };
 });
 
 // ===== Инициализация Bootstrap Tooltips =====

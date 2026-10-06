@@ -87,7 +87,7 @@ if ($org['ID_ORG'] == 0) {
         <ul class="tree-children" style="display: block;">
             <?php foreach ($org['PEOPLE'] as $person): ?>
                 <li class="tree-node" data-person-id="<?php echo $person['ID_PEP']; ?>" data-type="person">
-                    <div class="tree-item tree-item-person">
+                    <div class="tree-item tree-item-person" data-person-id="<?php echo $person['ID_PEP']; ?>" data-org-id="<?php echo $person['ID_ORG']; ?>">
                         <span class="tree-toggle">
                             <span style="font-size: 16px;">👤</span>
                         </span>
@@ -104,6 +104,12 @@ if ($org['ID_ORG'] == 0) {
                                 (<?php echo htmlspecialchars($person['POST']); ?>)
                             </span>
                         <?php endif; ?>
+                        
+                        <div class="org-actions pull-right">
+                            <button class="btn btn-xs btn-danger btn-delete-person" title="<?php echo __('Удалить сотрудника'); ?>">
+                                <span class="glyphicon glyphicon-trash"></span>
+                            </button>
+                        </div>
                     </div>
                 </li>
             <?php endforeach; ?>
